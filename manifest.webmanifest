@@ -1,0 +1,16 @@
+{
+  "name": "FMD",
+  "short_name": "FMD",
+  "description": "FMD sur téléphone et tablette : accueil, agenda, tâches et messages, synchronisés avec le logiciel FMD.",
+  "lang": "fr",
+  "start_url": "./#accueil",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080808",
+  "theme_color": "#080808",
+  "icons": [
+    { "src": "icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
