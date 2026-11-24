@@ -301,7 +301,7 @@
       <button class="btn-metal" type="submit">Ajouter</button><button class="btn-verre" type="button" data-fermer>Annuler</button></form>`);
   }
   function feuilleCompte() {
-    ouvrirFeuille(`<h3>${esc(nomDe(S.profil))}</h3><p class="vide" style="padding:0">${esc(S.user.email || '')}</p><p class="vide" style="padding:0">Données synchronisées avec le logiciel FMD sur PC.</p><p class="vide" style="padding:0">Version FMD ${esc(VERSION)}</p>
+    ouvrirFeuille(`<h3>${esc(nomDe(S.profil))}</h3><p class="vide" style="padding:0">${esc(S.user.email || '')}</p><p class="vide" style="padding:0">Données synchronisées avec le logiciel FMD sur PC.</p><p class="vide" style="padding:0">Version FMD ${esc(VERSION)}</p><button class="btn-verre" type="button" data-chercher-maj>Rechercher une mise à jour</button>
       <button class="btn-verre" type="button" data-actualiser>Tout relire sur le serveur</button><button class="btn-verre danger" type="button" data-deconnexion>Se déconnecter</button><button class="btn-verre" type="button" data-fermer>Fermer</button>`);
   }
   function feuilleMessage(m) {
@@ -316,6 +316,7 @@
     const al = t.closest('[data-aller]'); if (al) { aller(al.dataset.aller); return; }
     if (t.closest('[data-compte]')) { feuilleCompte(); return; }
     if (t.closest('[data-deconnexion]')) { S.feuille = null; if (S.canal) sb.removeChannel(S.canal); await sb.auth.signOut(); return; }
+    if (t.closest('[data-chercher-maj]')) { const b = t.closest('[data-chercher-maj]'); b.disabled = true; b.textContent = 'Recherche…'; const r = await rechargerSiNouvelle(null, true); S.feuille = null; rendre(true); if (!r) toast(`FMD est à jour (version ${VERSION}).`); return; }
     if (t.closest('[data-actualiser]')) { S.feuille = null; await Promise.all([chargerProfils(), chargerMessages(), chargerTaches(), chargerAgenda(), chargerCRM()]); rendre(); toast('À jour avec le serveur.'); return; }
     if (t.closest('[data-ajouter]')) { if (S.route === 'agenda') feuilleRdv(); else feuilleTache(); return; }
     if (t.closest('[data-nouveau-rdv]')) { feuilleRdv(); return; }
@@ -382,12 +383,29 @@
   let versionAttendue = null; let surveillance = null;
   async function versionEnLigne() { try { const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' }); return r.ok ? (await r.json()).version : null; } catch { return null; } }
   const occupe = () => { const t = app.querySelector('[data-texte]'); return !!S.feuille || !!(t && t.value.trim()); };
-  async function rechargerSiNouvelle(attendue) {
-    const v = await versionEnLigne(); if (!v || v === VERSION || (attendue && v !== attendue)) return false;
-    if (occupe()) { setTimeout(() => rechargerSiNouvelle(attendue), 5000); return true; }
-    toast(`Mise à jour FMD ${v}…`);
+  // Comme sur PC : alerte « Nouvelle mise à jour » (Mettre à jour / Plus tard), installée toute seule après 30 s si on ne
+  // touche à rien et qu'aucune saisie n'est en cours. « Plus tard » : rappel 30 min plus tard (ou au retour dans l'appli).
+  let alerteMaj = null; let reporteJusqua = 0;
+  async function installerMaj(v) {
+    const b = document.getElementById('alerte-maj'); if (b) b.querySelector('[data-maj-texte]').textContent = `Installation de FMD ${v}…`;
     try { const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch { /* rechargement simple */ }
-    setTimeout(() => location.reload(), 1200); return true;
+    setTimeout(() => location.reload(), 800);
+  }
+  function montrerAlerteMaj(v) {
+    if (document.getElementById('alerte-maj')) return;
+    const b = document.createElement('div'); b.id = 'alerte-maj'; b.className = 'alerte-maj'; b.setAttribute('role', 'alertdialog'); b.setAttribute('aria-label', 'Nouvelle mise à jour');
+    b.innerHTML = `<div><b data-maj-texte>Nouvelle mise à jour : FMD ${esc(v)}</b><small data-maj-compte>Installation automatique dans 30 s</small></div><div class="alerte-maj-boutons"><button type="button" class="btn-verre" data-maj-plus-tard>Plus tard</button><button type="button" class="btn-metal" data-maj-ok>Mettre à jour</button></div>`;
+    document.body.appendChild(b);
+    let reste = 30;
+    alerteMaj = setInterval(() => { reste--; const c = b.querySelector('[data-maj-compte]'); if (occupe()) { if (c) c.textContent = 'Installation à la fin de votre saisie'; reste = Math.max(reste, 5); return; }
+      if (c) c.textContent = `Installation automatique dans ${reste} s`; if (reste <= 0) { clearInterval(alerteMaj); installerMaj(v); } }, 1000);
+    b.querySelector('[data-maj-ok]').onclick = () => { clearInterval(alerteMaj); installerMaj(v); };
+    b.querySelector('[data-maj-plus-tard]').onclick = () => { clearInterval(alerteMaj); b.remove(); reporteJusqua = Date.now() + 30 * 60000; };
+  }
+  async function rechargerSiNouvelle(attendue, bouton) {
+    const v = await versionEnLigne(); if (!v || v === VERSION || (attendue && v !== attendue)) return false;
+    if (!bouton && Date.now() < reporteJusqua) return true;
+    montrerAlerteMaj(v); return true;
   }
   function attendreVersion(v) {
     versionAttendue = v; clearInterval(surveillance); let n = 0;
