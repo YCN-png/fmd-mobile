@@ -5,7 +5,7 @@
 // D.A. FMD Signature (maquette V2 : https://claude.ai/artifact/6T9TEbxaE1DHg7L7GVLF56). Détail : cerveau/Mobile.md.
 (function () {
   'use strict';
-  const VERSION = "0.4.140"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
+  const VERSION = "0.4.141"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
   const C = window.FMD_CONFIG || {};
   const sb = window.supabase.createClient(C.supabaseUrl, C.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'fmd-mobile-session' } });
   const app = document.getElementById('app');
@@ -17,6 +17,19 @@
   const euros = (n) => (+n || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: (+n || 0) >= 1000 ? 0 : 2 });
   const nomDe = (p) => (p ? (p.nom || `${p.prenom || ''} ${p.nom_famille || ''}`.trim() || p.email || 'Collègue') : 'Collègue');
   const ESPACE = 'messagerie';
+  // Installer l'appli (24/11/2026) : APK Android « coquille » (release fixe « android », jamais la « latest » des PC) ;
+  // iPhone : Safari › Partager › Sur l'écran d'accueil. Rien n'est proposé quand l'appli est déjà installée / ouverte dans l'APK.
+  const LIEN_APK = 'https://github.com/YCN-png/fmd-telechargement/releases/download/android/FMD-android.apk';
+  const dansApk = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const installee = () => dansApk() || window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  const estIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  function blocInstaller() {
+    if (installee()) return '';
+    return `<div class="installer"><b>Installer l’appli FMD</b>
+      ${estIOS() ? '' : `<a class="btn-verre" href="${LIEN_APK}">⬇ Télécharger l’appli Android (APK)</a>`}
+      <small>iPhone / iPad : dans Safari, touchez <b>Partager</b> puis <b>« Sur l’écran d’accueil »</b>.</small>
+      ${estIOS() ? '' : '<small>Android : ouvrez le fichier téléchargé puis « Installer » (une seule fois : ensuite l’appli se met à jour toute seule).</small>'}</div>`;
+  }
 
   const ICO = {
     accueil: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path>',
@@ -30,10 +43,19 @@
     trombone: '<path d="M21 12.5l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.7 3.7 0 0 1 5.2 5.2l-9.2 9.2a1.8 1.8 0 0 1-2.6-2.6l8.5-8.5"></path>',
     photo: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle>',
     coche: '<path d="M5 12l5 5 9-10"></path>',
+    clients: '<circle cx="9" cy="8" r="4"></circle><path d="M2 21a7 7 0 0 1 14 0"></path><path d="M17 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"></path>',
+    stock: '<path d="M12 2l9 5v10l-9 5-9-5V7z"></path><path d="M3 7l9 5 9-5M12 12v10"></path>',
+    devis: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6M12 12v6M9 15h6"></path>',
+    tel: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"></path>',
+    carte: '<path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"></path><circle cx="12" cy="10" r="2.5"></circle>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path>',
+    cherche: '<circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path>',
   };
   const ico = (n, t = 22, w = 2) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n] || ''}</svg>`;
 
-  const S = { user: null, profil: null, profils: [], route: 'accueil', conv: null, messages: [], taches: [], evts: [], crm: null, jour: aujISO(), canal: null, urls: {}, feuille: null };
+  const S = { user: null, profil: null, profils: [], route: 'accueil', conv: null, messages: [], taches: [], evts: [], crm: null, jour: aujISO(), canal: null, urls: {}, feuille: null,
+    client: null, rechClients: '', rechStock: '', produits: [], produitsCharges: false, produitsCache: {}, devis: null };
+  const ROUTES = /^(accueil|agenda|taches|messages|clients|stock|devis)$/;
   const moi = () => (S.user ? S.user.id : null);
   const profil = (id) => S.profils.find((p) => p.id === id);
   const visible = (m) => !((m.de === moi() && m.masque_de) || (m.a === moi() && m.masque_a));
@@ -49,7 +71,7 @@
       <label class="champ">Adresse e-mail<input name="email" type="email" autocomplete="username" required inputmode="email"></label>
       <label class="champ">Mot de passe<input name="mdp" type="password" autocomplete="current-password" required></label>
       <div class="erreur" data-erreur>${esc(msg)}</div>
-      <button class="btn-metal" type="submit">Se connecter</button></form></div>`;
+      <button class="btn-metal" type="submit">Se connecter</button>${blocInstaller()}</form></div>`;
     app.querySelector('[data-connexion]').addEventListener('submit', async (e) => {
       e.preventDefault(); const f = e.target; const b = f.querySelector('button'); b.disabled = true; b.textContent = 'Connexion…';
       const { error } = await sb.auth.signInWithPassword({ email: f.email.value.trim(), password: f.mdp.value });
@@ -65,7 +87,7 @@
     app.innerHTML = '<div class="chargement"><span class="spin" aria-hidden="true"></span>Chargement depuis le serveur…</div>';
     await Promise.all([chargerProfils(), chargerMessages(), chargerTaches(), chargerAgenda(), chargerCRM()]);
     ecouter();
-    const h = location.hash.slice(1); if (/^(accueil|agenda|taches|messages)$/.test(h)) S.route = h;
+    const h = location.hash.slice(1); if (ROUTES.test(h) && h !== 'devis') S.route = h;
     rendre();
   }
 
@@ -118,22 +140,28 @@
   function rendre(garderDefilement) {
     const y = window.scrollY; const fil = app.querySelector('.fil'); const yFil = fil ? fil.scrollTop : null; const enBas = fil ? fil.scrollHeight - fil.scrollTop - fil.clientHeight < 80 : true;
     const saisie = app.querySelector('[data-texte]'); const brouillon = saisie ? saisie.value : ''; const focus = saisie && document.activeElement === saisie;
-    const page = S.route === 'agenda' ? pageAgenda() : S.route === 'taches' ? pageTaches() : (S.route === 'messages' || S.route === 'conv') ? pageMessages() : pageAccueil();
-    app.classList.toggle('en-conversation', S.route === 'conv');
-    app.innerHTML = `<div class="coquille">${page}</div>${dock()}${S.route === 'agenda' || S.route === 'taches' ? `<button type="button" class="flottant" data-ajouter aria-label="${S.route === 'agenda' ? 'Nouveau rendez-vous' : 'Nouvelle tâche'}">${ico('plus', 26, 2.4)}</button>` : ''}${S.feuille ? S.feuille : ''}`;
+    const r = S.route;
+    const page = r === 'agenda' ? pageAgenda() : r === 'taches' ? pageTaches() : (r === 'messages' || r === 'conv') ? pageMessages() : r === 'clients' ? pageClients() : r === 'client' ? pageClient() : r === 'stock' ? pageStock() : r === 'devis' ? pageDevis() : pageAccueil();
+    app.classList.toggle('en-conversation', r === 'conv' || r === 'devis');
+    const fl = r === 'agenda' ? 'Nouveau rendez-vous' : r === 'taches' ? 'Nouvelle tâche' : r === 'clients' || r === 'client' ? 'Nouveau devis' : '';
+    const champRech = app.querySelector('[data-recherche]'); const rech = champRech && document.activeElement === champRech ? { n: champRech.dataset.recherche, pos: champRech.selectionStart } : null;
+    app.innerHTML = `<div class="coquille">${page}</div>${dock()}${fl ? `<button type="button" class="flottant" data-ajouter aria-label="${fl}">${ico('plus', 26, 2.4)}</button>` : ''}${S.feuille ? S.feuille : ''}`;
+    if (rech) { const c = app.querySelector(`[data-recherche="${rech.n}"]`); if (c) { c.focus(); try { c.setSelectionRange(rech.pos, rech.pos); } catch { /* */ } } }
     const t = app.querySelector('[data-texte]'); if (t) { t.value = brouillon; if (focus) t.focus(); }
     const f2 = app.querySelector('.fil'); if (f2) f2.scrollTop = garderDefilement && yFil !== null && !enBas ? yFil : f2.scrollHeight;
     if (garderDefilement) window.scrollTo(0, y);
     chargerImages();
     if (S.route === 'conv' && S.conv && document.visibilityState === 'visible') marquerLus(S.conv);
-    if (location.hash.slice(1) !== S.route && S.route !== 'conv') history.replaceState(null, '', '#' + S.route);
+    const hRoute = S.route === 'client' ? 'clients' : S.route === 'conv' ? 'messages' : S.route;
+    if (location.hash.slice(1) !== hRoute && ROUTES.test(hRoute)) history.replaceState(null, '', '#' + hRoute);
   }
   function aller(r) { S.route = r; S.feuille = null; rendre(); window.scrollTo(0, 0); }
 
   function dock() {
     const n = nonLus();
     const b = (r, nom, lib) => `<button type="button" data-aller="${r}" class="${S.route === r || (r === 'messages' && S.route === 'conv') ? 'actif' : ''}" aria-label="${lib}">${ico(nom, 22)}<span>${lib}</span>${r === 'messages' && n ? `<span class="badge">${n}</span>` : ''}</button>`;
-    return `<nav class="dock" aria-label="Navigation">${b('accueil', 'accueil', 'Accueil')}${b('agenda', 'agenda', 'Agenda')}${b('taches', 'taches', 'Tâches')}${b('messages', 'messages', 'Messages')}<button type="button" data-compte aria-label="Mon compte">${ico('compte', 22)}<span>Compte</span></button></nav>`;
+    const b2 = (r, nom, lib, autres) => b(r, nom, lib).replace(`class="${S.route === r ? 'actif' : ''}"`, `class="${S.route === r || (autres || []).includes(S.route) ? 'actif' : ''}"`);
+    return `<nav class="dock" aria-label="Navigation">${b('accueil', 'accueil', 'Accueil')}${b2('clients', 'clients', 'Clients', ['client'])}${b('stock', 'stock', 'Stock')}${b2('agenda', 'agenda', 'Agenda', ['taches'])}${b('messages', 'messages', 'Messages')}</nav>`;
   }
   const entete = (petit, titre, retour) => `<header class="entete"><div style="display:flex;align-items:flex-end;gap:12px">${retour ? `<button type="button" class="retour" data-aller="${retour}" aria-label="Retour">${ico('retour', 20, 2.2)}</button>` : ''}<div><small>${esc(petit)}</small><h1>${titre}</h1></div></div><button type="button" class="avatar" data-compte aria-label="Mon compte">${esc(nomDe(S.profil).charAt(0).toUpperCase())}</button></header>`;
 
@@ -153,13 +181,13 @@
         <section class="widget chaud large" aria-label="Ventes du mois"><div class="ventes">${anneau}<div class="chiffres"><span class="eti">Ventes de ${esc(new Date().toLocaleDateString('fr-FR', { month: 'long' }))}</span><span class="gros">${v ? euros(v.ca) : '—'}</span><div class="pastilles">${v && v.objectif ? `<span class="pastille">Objectif ${euros(v.objectif)}</span>` : ''}${v ? `<span class="pastille neutre">${v.nb} commande${v.nb > 1 ? 's' : ''}</span>` : '<span class="pastille neutre">CRM indisponible</span>'}</div></div></div></section>
         <section class="widget" aria-label="Aujourd’hui"><div class="tete"><h2>Aujourd’hui</h2><small>${evtsJour.length} rendez-vous</small></div>${evtsJour.length ? evtsJour.slice(0, 3).map(ligneEvt).join('') : '<p class="vide">Rien de prévu aujourd’hui.</p>'}</section>
         <section class="widget chaud" aria-label="Messages"><div class="tete"><h2>Messages</h2>${nonLus() ? `<span class="compteur">${nonLus()}</span>` : ''}</div>${convs.length ? convs.map(ligneConv).join('') : '<p class="vide">Aucun message.</p>'}</section>
-        <section class="widget" aria-label="Tâches"><div class="tete"><h2>Tâches</h2><small>${S.taches.filter((t) => !t.fait).length} restantes</small></div>${taches.length ? taches.map(ligneTache).join('') : '<p class="vide">Tout est fait.</p>'}</section>
+        <section class="widget" aria-label="Tâches"><div class="tete"><h2>Tâches</h2><button type="button" class="lien" data-aller="taches">${S.taches.filter((t) => !t.fait).length} restantes ›</button></div>${taches.length ? taches.map(ligneTache).join('') : '<p class="vide">Tout est fait.</p>'}</section>
         <section class="widget large" aria-label="Commandes à suivre"><div class="tete"><h2>Commandes à suivre</h2><small>CRM</small></div>${cmds.length ? `<div class="cartes">${cmds.map((c) => `<div class="carte-blanche"><div class="l1"><b>${esc(c.tiers)}</b><span class="etat ${c.etat[1]}">${esc(c.etat[0])}</span></div><small>${esc(c.ref)} · ${euros(c.ht)} HT</small></div>`).join('')}</div>` : '<p class="vide">Aucune commande en cours.</p>'}</section>
         <section class="widget" aria-label="Actions rapides"><div class="actions">
-          <button type="button" class="action metal" data-nouveau-rdv>${ico('agenda', 24)}Rendez-vous</button>
+          <button type="button" class="action metal" data-nouveau-devis>${ico('devis', 24)}Nouveau devis</button>
+          <button type="button" class="action" data-nouveau-rdv>${ico('agenda', 24)}Rendez-vous</button>
           <button type="button" class="action" data-nouvelle-tache>${ico('taches', 24)}Tâche</button>
-          <button type="button" class="action" data-aller="messages">${ico('messages', 24)}Écrire</button>
-          <button type="button" class="action" data-aller="agenda">${ico('agenda', 24)}Agenda</button></div></section>
+          <button type="button" class="action" data-aller="taches">${ico('taches', 24)}Mes tâches</button></div></section>
       </div>`;
   }
   const couleurEvt = (e) => (e.masque ? 'gris' : e.couleur === 'bleu' ? 'bleu' : e.couleur === 'vert' ? 'vert' : '');
@@ -281,6 +309,174 @@
     }
   }
 
+  // ================= CRM : clients, stock, devis (24/11/2026) =================
+  const tiersDe = (id) => ((S.crm && S.crm.tiers) || []).find((t) => t.id === id) || null;
+  const rond2 = (n) => Math.round((+n || 0) * 100) / 100;
+  const htL = (l) => rond2((+l.qte || 0) * (+l.pu || 0) * (1 - (+l.remise || 0) / 100));
+  const htD = (d) => rond2((d.lignes || []).reduce((s, l) => s + htL(l), 0));
+  const ttcD = (d) => rond2(htD(d) + (d.lignes || []).reduce((s, l) => s + htL(l) * ((l.tva ?? 20) / 100), 0));
+  const avatarTiers = (t, taille = 48) => (t && t.logo && /^(data:image|https:)/.test(t.logo) ? `<span class="rond" style="width:${taille}px;height:${taille}px;background:#fff;overflow:hidden"><img src="${esc(t.logo)}" alt="" style="width:100%;height:100%;object-fit:contain"></span>` : `<span class="rond" style="width:${taille}px;height:${taille}px;background:linear-gradient(135deg,#9CC3E8,#4A78D0)">${esc(String((t && t.nom) || '?').charAt(0).toUpperCase())}</span>`);
+  const normaliser = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const ETATS_DOC = { brouillon: ['Brouillon', ''], ouvert: ['Ouvert', 'bleu'], signee: ['Signée', 'vert'], non_signee: ['Non signée', ''], facturee: ['Facturée', 'vert'], validee: ['Validée', ''], en_cours: ['En cours', 'bleu'], livree: ['Livrée', 'vert'], annulee: ['Annulée', ''], payee: ['Payée', 'vert'], impayee: ['À payer', ''] };
+
+  // ---------- clients ----------
+  function pageClients() {
+    const q = normaliser(S.rechClients);
+    const l = ((S.crm && S.crm.tiers) || []).filter((t) => (t.client || t.prospect) && (!q || normaliser([t.nom, t.alt, t.ville, t.code_client, t.tel].join(' ')).includes(q)))
+      .sort((a, b) => String(a.nom).localeCompare(String(b.nom), 'fr')).slice(0, 80);
+    return `${entete('CRM', 'Clients')}
+      <label class="recherche">${ico('cherche', 18)}<input type="search" data-recherche="clients" value="${esc(S.rechClients)}" placeholder="Nom, ville, téléphone…" aria-label="Rechercher un client"></label>
+      <section class="widget">${!S.crm ? '<p class="vide">CRM indisponible (pas de connexion au serveur).</p>' : l.length ? `<div class="convs">${l.map((t) => `<button type="button" class="conv" data-fiche-client="${esc(t.id)}">${avatarTiers(t)}<span class="txt"><b>${esc(t.nom)}</b><small>${esc([t.prospect && !t.client ? 'Prospect' : 'Client', t.ville, t.tel].filter(Boolean).join(' · '))}</small></span><span class="droite">›</span></button>`).join('')}</div>` : '<p class="vide">Aucun client trouvé.</p>'}</section>`;
+  }
+  function pageClient() {
+    const t = tiersDe(S.client); if (!t) return `${entete('CRM', 'Client', 'clients')}<section class="widget"><p class="vide">Fiche introuvable.</p></section>`;
+    const db = S.crm; const an = aujISO().slice(0, 4);
+    const docs = [...(db.propositions || []).map((d) => ({ ...d, _t: 'Devis' })), ...(db.commandes || []).map((d) => ({ ...d, _t: 'Commande' })), ...(db.factures || []).map((d) => ({ ...d, _t: 'Facture', etat: d.payee ? 'payee' : 'impayee' }))]
+      .filter((d) => d.tiers === t.id).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const ca = (db.commandes || []).filter((c) => c.tiers === t.id && c.etat !== 'brouillon' && c.etat !== 'annulee' && String(c.date).slice(0, 4) === an).reduce((s, c) => s + htD(c), 0);
+    const encours = (db.factures || []).filter((f) => f.tiers === t.id && !f.payee).reduce((s, f) => s + ttcD(f), 0);
+    const adresse = [t.adresse, t.cp, t.ville].filter(Boolean).join(' ');
+    return `${entete(t.prospect && !t.client ? 'Prospect' : 'Client', esc(t.nom), 'clients')}
+      <div class="grille accueil">
+        <section class="widget chaud large"><div style="display:flex;align-items:center;gap:14px">${avatarTiers(t, 64)}<div style="min-width:0"><b style="font-size:18px">${esc(t.nom)}</b><div class="vide" style="padding:2px 0">${esc([adresse, t.code_client].filter(Boolean).join(' · ') || '—')}</div></div></div>
+          <div class="pastilles" style="margin-top:12px">${t.tel || t.portable ? `<a class="btn-verre" href="tel:${esc(String(t.tel || t.portable).replace(/\s/g, ''))}">${ico('tel', 18)}Appeler</a>` : ''}${adresse ? `<a class="btn-verre" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresse)}" target="_blank" rel="noopener">${ico('carte', 18)}Itinéraire</a>` : ''}${t.email ? `<a class="btn-verre" href="mailto:${esc(t.email)}">${ico('mail', 18)}E-mail</a>` : ''}<button type="button" class="btn-metal" style="min-height:44px;font-size:14px" data-nouveau-devis="${esc(t.id)}">${ico('plus', 18, 2.4)}Nouveau devis</button></div></section>
+        <section class="widget"><div class="tete"><h2>Cette année</h2></div><div class="ventes"><div class="chiffres"><span class="gros">${euros(ca)}</span><span class="vide" style="padding:0">CA HT (commandes)</span></div></div></section>
+        <section class="widget"><div class="tete"><h2>Encours</h2></div><div class="ventes"><div class="chiffres"><span class="gros">${euros(encours)}</span><span class="vide" style="padding:0">factures non payées TTC</span></div></div></section>
+        <section class="widget large"><div class="tete"><h2>Devis, commandes, factures</h2><small>${docs.length}</small></div>${docs.length ? `<div class="cartes">${docs.slice(0, 12).map((d) => { const e = ETATS_DOC[d.etat] || [d.etat || '', '']; return `<div class="carte-blanche"><div class="l1"><b>${esc(d.ref)}</b><span class="etat ${e[1]}">${esc(e[0])}</span></div><small>${esc(d._t)} · ${d.date ? new Date(d.date + 'T12:00:00').toLocaleDateString('fr-FR') : ''} · ${euros(htD(d))} HT</small><small>${esc(((d.lignes || [])[0] || {}).desc || '')}${(d.lignes || []).length > 1 ? ` + ${(d.lignes || []).length - 1}` : ''}</small></div>`; }).join('')}</div>` : '<p class="vide">Aucun document.</p>'}</section>
+        ${t.note_pub || t.cond || t.mode ? `<section class="widget"><div class="tete"><h2>Conditions</h2></div><p class="vide" style="padding:0">${esc([t.remise ? `Remise ${t.remise} %` : 'Prix net', t.cond, t.mode].filter(Boolean).join(' · '))}</p></section>` : ''}
+      </div>`;
+  }
+
+  // ---------- stock (produits : table crm_produits) ----------
+  const prixNet = (p) => +((p && p.prix) || [])[0] || 0;
+  const emplacements = (p) => (p.emplacements3d || []).filter((e) => e && e.rayon).map((e) => `${e.rayon} · niv. ${e.niveau || 1} · case ${e.case || 1}${e.qte ? ` (${e.qte})` : ''}`);
+  const imageProduit = (p, t = 64) => (p.image && /^(data:image|https:)/.test(p.image) ? `<img src="${esc(p.image)}" alt="" style="width:${t}px;height:${t}px;object-fit:contain;border-radius:14px;background:#fff">` : `<span style="width:${t}px;height:${t}px;flex:none;border-radius:14px;background:radial-gradient(120% 90% at 50% 15%,#fff,#f3ece7 45%,#d9cbc2);display:grid;place-items:center;color:#6F4A3C">${ico('stock', Math.round(t / 2.6))}</span>`);
+  async function chercherProduits(q, limite = 60) {
+    const propre = String(q || '').replace(/[,()*%\\]/g, ' ').trim();
+    let r = sb.from('crm_produits').select('id,data').eq('supprime', false).limit(limite);
+    if (propre) r = r.or(`ref.ilike.%${propre}%,ean.ilike.%${propre}%,data->>libelle.ilike.%${propre}%,marque.ilike.%${propre}%`);
+    const { data, error } = await r; if (error) throw new Error(error.message);
+    const l = (data || []).map((x) => x.data).filter((p) => p && p.id && p.en_vente !== false);
+    l.forEach((p) => { S.produitsCache[p.id] = p; }); return l;
+  }
+  let minuteurStock = null;
+  function lancerRechercheStock() {
+    clearTimeout(minuteurStock);
+    minuteurStock = setTimeout(async () => { try { S.produits = await chercherProduits(S.rechStock, S.rechStock ? 60 : 400); S.produitsCharges = true; } catch (e) { S.produits = []; S.produitsCharges = 'erreur'; toast('Catalogue : ' + e.message); } if (S.route === 'stock' || (S.route === 'devis' && S.devis && S.devis.etape === 2)) rendre(true); }, 300);
+  }
+  function pageStock() {
+    if (!S.produitsCharges) lancerRechercheStock();
+    const l = S.produits; const alertes = S.rechStock ? [] : l.filter((p) => +p.alerte > 0 && (+p.stock || 0) < +p.alerte);
+    const carte = (p) => `<button type="button" class="ligne-produit" data-produit="${esc(p.id)}">${imageProduit(p)}<span class="txt"><b>${esc(p.libelle || p.ref)}</b><small>${esc(p.ref || '')}${emplacements(p)[0] ? ' · ' + esc(emplacements(p)[0]) : ''}</small></span><span class="droite"><b class="${+p.alerte > 0 && (+p.stock || 0) < +p.alerte ? 'bas' : ''}">${(+p.stock || 0).toLocaleString('fr-FR')}</b><small>en stock</small></span></button>`;
+    return `${entete('Catalogue', 'Stock')}
+      <label class="recherche">${ico('cherche', 18)}<input type="search" data-recherche="stock" value="${esc(S.rechStock)}" placeholder="Où est ce produit ? Réf., nom, code-barres" aria-label="Chercher un produit"></label>
+      ${alertes.length ? `<div class="groupe retard">À réapprovisionner ${alertes.length}</div><section class="widget">${alertes.slice(0, 8).map(carte).join('')}</section>` : ''}
+      <div class="groupe">${S.rechStock ? 'Résultats' : 'Produits'} ${S.produitsCharges === true ? l.length : ''}</div>
+      <section class="widget">${S.produitsCharges === true ? (l.length ? l.slice(0, 60).map(carte).join('') : '<p class="vide">Aucun produit trouvé.</p>') : S.produitsCharges === 'erreur' ? '<p class="vide">Catalogue indisponible.</p>' : '<p class="vide">Chargement du catalogue…</p>'}</section>`;
+  }
+  function feuilleProduit(id) {
+    const p = S.produitsCache[id]; if (!p) return;
+    const empl = emplacements(p);
+    ouvrirFeuille(`<div style="display:flex;gap:14px;align-items:center">${imageProduit(p, 84)}<div><h3>${esc(p.libelle || p.ref)}</h3><p class="vide" style="padding:0">${esc([p.ref, p.marque, p.code_barres].filter(Boolean).join(' · '))}</p></div></div>
+      <div class="pastilles"><span class="pastille">${(+p.stock || 0).toLocaleString('fr-FR')} en stock</span>${+p.alerte ? `<span class="pastille neutre">seuil ${p.alerte}</span>` : ''}<span class="pastille neutre">${euros(prixNet(p))} HT</span></div>
+      <div><b style="font-size:14px">Emplacement</b><p class="vide" style="padding:4px 0">${empl.length ? empl.map(esc).join('<br>') : 'Pas encore rangé dans le magasin 3D.'}</p></div>
+      <button class="btn-verre" type="button" data-fermer>Fermer</button>`);
+  }
+
+  // ---------- devis en 3 étapes (même logique que le CRM du PC : js/erp-commerce.js, erp-donnees.js, erp-prix.js) ----------
+  function nouveauDevis(tiersId) { S.devis = { etape: tiersId ? 2 : 1, tiers: tiersId || null, lignes: [], note: '' }; if (!S.produitsCharges) lancerRechercheStock(); S.route = 'devis'; S.feuille = null; rendre(); window.scrollTo(0, 0); }
+  function prixPour(tiersId, p) { // D.prixPour : prix négocié client > prix promo en cours > prix net (+ remise client)
+    const t = tiersDe(tiersId) || {}; const remise = +t.remise || 0; const j = aujISO();
+    const spec = ((S.crm && S.crm.prixClients) || []).find((x) => x.tiers === tiersId && x.produit === p.id);
+    if (spec) return { pu: +spec.pu, remise, auto: 'prix client' };
+    if (+p.prix_promo > 0 && (!p.promo_du || p.promo_du <= j) && (!p.promo_au || p.promo_au >= j)) return { pu: +p.prix_promo, remise: 0, auto: 'prix promo' };
+    return { pu: prixNet(p), remise, auto: 'prix net' };
+  }
+  const prixRevient = (p) => { if (!p) return 0; if (+p.pmp > 0) return +p.pmp; const f = (p.fournisseurs || []).map((x) => (+x.pu || 0) * (1 - (+x.remise || 0) / 100)).filter((x) => x > 0); return f.length ? rond2(Math.min(...f)) : 0; };
+  function pageDevis() {
+    const d = S.devis; if (!d) return pageAccueil();
+    const t = tiersDe(d.tiers);
+    const etapes = `<ol class="etapes" aria-label="Étapes">${['Client', 'Produits', 'Envoyer'].map((n, i) => `<li class="${d.etape === i + 1 ? 'actif' : d.etape > i + 1 ? 'fait' : ''}">${d.etape > i + 1 ? '✓' : i + 1}<span>${n}</span></li>`).join('')}</ol>`;
+    const tete = `<div class="fil-tete" style="border:0;padding:0 0 8px"><button type="button" class="retour" data-devis-retour aria-label="Retour">${ico('retour', 20, 2.2)}</button><b style="font:700 22px var(--titre)">Nouveau devis</b></div>${etapes}`;
+    const total = { ht: htD(d), ttc: ttcD(d), marge: rond2(htD(d) - d.lignes.reduce((s, l) => s + prixRevient(S.produitsCache[l.produit]) * l.qte, 0)) };
+    if (d.etape === 1) {
+      const q = normaliser(S.rechClients);
+      const l = ((S.crm && S.crm.tiers) || []).filter((x) => (x.client || x.prospect) && (!q || normaliser([x.nom, x.ville, x.code_client].join(' ')).includes(q))).sort((a, b) => String(a.nom).localeCompare(String(b.nom), 'fr')).slice(0, 60);
+      return `${tete}<label class="recherche">${ico('cherche', 18)}<input type="search" data-recherche="clients" value="${esc(S.rechClients)}" placeholder="Choisir le client…" aria-label="Choisir le client"></label>
+        <section class="widget"><div class="convs">${l.map((x) => `<button type="button" class="conv" data-devis-client="${esc(x.id)}">${avatarTiers(x)}<span class="txt"><b>${esc(x.nom)}</b><small>${esc([x.ville, x.remise ? `remise ${x.remise} %` : 'prix net'].filter(Boolean).join(' · '))}</small></span><span class="droite">›</span></button>`).join('') || '<p class="vide">Aucun client.</p>'}</div></section>`;
+    }
+    const recap = `<section class="widget chaud panier"><div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">${avatarTiers(t, 44)}<div style="flex:1;min-width:0"><b>${esc(t ? t.nom : '—')}</b><div class="vide" style="padding:0;font-size:12px">${esc(t && t.remise ? `remise client ${t.remise} %` : 'prix net')}</div></div>${d.etape === 2 ? '<button type="button" class="btn-verre" data-devis-etape="1">Changer</button>' : ''}</div>
+      ${d.lignes.map((l, i) => `<div class="ligne-devis"><div class="txt"><b>${esc(l.desc)}</b><small>${euros(l.pu)}${l.remise ? ` −${l.remise} %` : ''} · ${esc(l.auto)}</small></div><div class="stepper" role="group" aria-label="Quantité"><button type="button" data-qte="${i}" data-pas="-1" aria-label="Retirer un">−</button><span>${l.qte}</span><button type="button" data-qte="${i}" data-pas="1" aria-label="Ajouter un">+</button></div></div>`).join('') || '<p class="vide">Ajoutez des produits.</p>'}
+      <div class="totaux"><span>Total HT <b>${euros(total.ht)}</b></span><span>Marge <b>${euros(total.marge)}</b></span><span class="ttc">TTC <b>${euros(total.ttc)}</b></span></div></section>`;
+    if (d.etape === 2) {
+      if (!S.produitsCharges) lancerRechercheStock();
+      const dans = new Map(d.lignes.map((l) => [l.produit, l.qte]));
+      const prods = S.produitsCharges === true ? S.produits.slice(0, 40).map((p) => { const px = prixPour(d.tiers, p); return `<div class="carte-produit">${imageProduit(p, 72)}<div class="txt"><b>${esc(p.libelle || p.ref)}</b><small>${esc(p.ref || '')} · stock ${(+p.stock || 0).toLocaleString('fr-FR')}</small><b class="prix">${euros(px.pu)}${px.remise ? ` <small>−${px.remise} %</small>` : ''}</b></div><button type="button" class="ajout ${dans.has(p.id) ? 'dans' : ''}" data-ajout-produit="${esc(p.id)}" aria-label="Ajouter ${esc(p.libelle || p.ref)}">${dans.has(p.id) ? '×' + dans.get(p.id) : '+'}</button></div>`; }).join('') : '<p class="vide">Chargement du catalogue…</p>';
+      return `${tete}<div class="devis-grille"><div><label class="recherche">${ico('cherche', 18)}<input type="search" data-recherche="stock" value="${esc(S.rechStock)}" placeholder="Chercher un produit ou un code-barres" aria-label="Chercher un produit"></label><div class="produits-grille">${prods}</div></div>
+        <div>${recap}<button type="button" class="btn-metal plein" data-devis-etape="3" ${d.lignes.length ? '' : 'disabled'}>Continuer ›</button></div></div>`;
+    }
+    const controleur = S.profil && S.profil.controle_par && profil(S.profil.controle_par);
+    return `${tete}${recap}
+      <section class="widget"><label class="champ">Note sur le devis (visible par le client)<textarea data-devis-note rows="3" maxlength="2000">${esc(d.note)}</textarea></label><p class="vide">Valable 15 jours. ${t && t.cond ? 'Paiement : ' + esc(t.cond) + '.' : ''}</p></section>
+      <button type="button" class="btn-metal plein" data-devis-valider>${controleur ? `Valider et envoyer à ${esc(nomDe(controleur))}` : 'Valider le devis'}</button>
+      <button type="button" class="btn-verre plein" data-devis-brouillon>Enregistrer en brouillon</button>`;
+  }
+  async function clicDevis(t) {
+    const d = S.devis; if (!d) return false;
+    if (t.closest('[data-devis-retour]')) { if (d.etape > 1) d.etape -= 1; else if (!d.lignes.length || window.confirm('Abandonner ce devis ?')) { S.devis = null; S.route = 'accueil'; } rendre(); return true; }
+    const c = t.closest('[data-devis-client]'); if (c) { d.tiers = c.dataset.devisClient; d.lignes.forEach((l) => { const p = S.produitsCache[l.produit]; if (p) Object.assign(l, prixPour(d.tiers, p)); }); d.etape = 2; S.rechStock = ''; lancerRechercheStock(); rendre(); return true; }
+    const e = t.closest('[data-devis-etape]'); if (e) { d.etape = +e.dataset.devisEtape; rendre(); window.scrollTo(0, 0); return true; }
+    const a = t.closest('[data-ajout-produit]');
+    if (a) { const p = S.produitsCache[a.dataset.ajoutProduit]; if (!p) return true; const l = d.lignes.find((x) => x.produit === p.id);
+      if (l) l.qte += 1; else d.lignes.push({ produit: p.id, desc: p.libelle || [p.modele, p.couleur, p.taille].filter(Boolean).join(' ') || p.ref, tva: 20, qte: 1, ...prixPour(d.tiers, p) });
+      rendre(true); return true; }
+    const q = t.closest('[data-qte]'); if (q) { const l = d.lignes[+q.dataset.qte]; if (!l) return true; l.qte += +q.dataset.pas; if (l.qte <= 0) d.lignes.splice(+q.dataset.qte, 1); rendre(true); return true; }
+    if (t.closest('[data-devis-valider]') || t.closest('[data-devis-brouillon]')) { const b = t.closest('button'); b.disabled = true; const valider = !!t.closest('[data-devis-valider]');
+      const n = app.querySelector('[data-devis-note]'); if (n) d.note = n.value;
+      try { const r = await enregistrerDevis(d, valider); S.devis = null; S.route = 'client'; S.client = r.tiers; rendre(); toast(valider ? `Devis ${r.ref} validé${r.envoye ? ' et envoyé pour contrôle' : ''} : visible sur le PC.` : `Brouillon ${r.ref} enregistré : à finir sur le PC ou ici.`); }
+      catch (er) { b.disabled = false; toast('Devis non enregistré : ' + er.message); } return true; }
+    return false;
+  }
+  // Enregistrement dans le CRM en ligne (donnees-fmd/crm/crm.json), comme un PC : lecture de la dernière version du serveur,
+  // ajout du devis, nouvelle révision (_rev / _parent) → les PC la fusionnent. Si un PC enregistre entre la lecture et l'envoi,
+  // le téléphone relit et recommence (jamais d'écrasement). Puis signal « crm » aux PC ouverts et carte « À contrôler ».
+  async function enregistrerDevis(d, valider) {
+    const auteur = nomDe(S.profil); const pad = (n, l) => String(n).padStart(l, '0');
+    for (let essai = 0; essai < 4; essai++) {
+      const { data: blob, error } = await sb.storage.from('donnees-fmd').download('crm/crm.json'); if (error || !blob) throw new Error('CRM illisible (' + ((error && error.message) || 'vide') + ')');
+      const db = JSON.parse(await blob.text()); const rev = db._rev;
+      ['propositions', 'evenements', 'tiers'].forEach((k) => { if (!Array.isArray(db[k])) db[k] = []; }); db.compteurs = db.compteurs || {};
+      const date = aujISO(); const maintenant = new Date().toISOString(); const id = 'prop' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const prov = (db.compteurs.prov || 0) + 1; let ref;
+      if (valider) { db.compteurs.pr = (db.compteurs.pr || 0) + 1; ref = 'PR-' + pad(db.compteurs.pr, 8); } else { db.compteurs.prov = prov; ref = `(PROV-PR${prov})`; }
+      const t = db.tiers.find((x) => x.id === d.tiers) || {};
+      const fin = new Date(date + 'T12:00:00'); fin.setDate(fin.getDate() + 15);
+      const o = { id, ref, tiers: d.tiers, ref_client: '', ref_fourn: '', date, cond: t.cond || '', mode: t.mode || '', expedition: '', origine: 'Mobile', delai: '', livraison: '',
+        note_pub: d.note || '', note_priv: '', etat: valider ? 'ouvert' : 'brouillon', lignes: d.lignes.map((l) => ({ produit: l.produit, desc: l.desc, tva: 20, pu: rond2(l.pu), qte: l.qte, remise: +l.remise || 0, auto: l.auto })),
+        liens: [], auteur, cree: maintenant, validite: 15, fin: jourISO(fin), modifie: maintenant };
+      db.propositions.push(o);
+      db.evenements.unshift({ id: 'ev' + Date.now().toString(36), d: maintenant, par: auteur, tiers: o.tiers, objet: { type: 'prop', id }, titre: valider ? `Proposition commerciale ${ref} validée (téléphone)` : `Proposition commerciale ${ref} créée (brouillon, téléphone)`, texte: '', type: 'auto' });
+      if (db.evenements.length > 600) db.evenements.length = 600;
+      db._parent = rev || null; db._rev = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      // Personne n'a enregistré entre-temps ? (sinon on recommence sur la nouvelle version)
+      const { data: b2 } = await sb.storage.from('donnees-fmd').download('crm/crm.json');
+      if (b2) { try { if (JSON.parse(await b2.text())._rev !== rev) continue; } catch { /* relu au prochain essai */ } }
+      const { error: e2 } = await sb.storage.from('donnees-fmd').upload('crm/crm.json', new Blob([JSON.stringify(db)], { type: 'application/json' }), { upsert: true, contentType: 'application/json', cacheControl: '0' });
+      if (e2) throw new Error(e2.message);
+      try { await sb.from('evenements').insert({ module: 'crm', cle: 'donnees', poste: 'mobile-' + moi() }); } catch { /* les PC relisent toutes les minutes */ }
+      S.crm = db;
+      let envoye = false;
+      if (valider && S.profil && S.profil.controle_par && S.profil.controle_par !== moi()) {
+        const lignes = o.lignes.map((l) => { const p = S.produitsCache[l.produit]; return { ref: p ? p.ref : '', desc: l.desc, qte: l.qte, pu: l.pu, remise: l.remise, ht: htL(l) }; });
+        const apercu = { type: 'prop', titre: 'Proposition commerciale', ref, role: 'Client', tiers: t.nom || '', ville: [t.cp, t.ville].filter(Boolean).join(' '), date, lignes: lignes.slice(0, 25), nb: lignes.length, ht: htD(o), ttc: ttcD(o), marge: rond2(htD(o) - o.lignes.reduce((s, l) => s + prixRevient(S.produitsCache[l.produit]) * l.qte, 0)) };
+        const libelle = `La proposition commerciale ${ref}`;
+        try { await sb.from('messages').insert({ de: moi(), a: S.profil.controle_par, texte: `🔎 À contrôler : ${auteur} vient de valider ${libelle.toLowerCase()} (${t.nom || ''}) — ${lignes.length} ligne${lignes.length > 1 ? 's' : ''}, ${euros(apercu.ht)} HT.`, lien: { module: 'crm', route: `prop/fiche/${id}`, libelle, controle: true, apercu } }); envoye = true; } catch { /* devis enregistré quand même */ }
+      }
+      return { ref, tiers: o.tiers, envoye };
+    }
+    throw new Error('le CRM change en ce moment sur un autre poste, réessayez dans quelques secondes');
+  }
+
   // ---------- feuilles (formulaires et menus) ----------
   function ouvrirFeuille(html) { S.feuille = `<div class="feuille" data-fermer-feuille><div class="panneau" role="dialog" aria-modal="true">${html}</div></div>`; rendre(true); const i = app.querySelector('.panneau input'); if (i) i.focus(); }
   function fermerFeuille() { S.feuille = null; rendre(true); }
@@ -301,7 +497,7 @@
       <button class="btn-metal" type="submit">Ajouter</button><button class="btn-verre" type="button" data-fermer>Annuler</button></form>`);
   }
   function feuilleCompte() {
-    ouvrirFeuille(`<h3>${esc(nomDe(S.profil))}</h3><p class="vide" style="padding:0">${esc(S.user.email || '')}</p><p class="vide" style="padding:0">Données synchronisées avec le logiciel FMD sur PC.</p><p class="vide" style="padding:0">Version FMD ${esc(VERSION)}</p><button class="btn-verre" type="button" data-chercher-maj>Rechercher une mise à jour</button>
+    ouvrirFeuille(`<h3>${esc(nomDe(S.profil))}</h3><p class="vide" style="padding:0">${esc(S.user.email || '')}</p><p class="vide" style="padding:0">Données synchronisées avec le logiciel FMD sur PC.</p><p class="vide" style="padding:0">Version FMD ${esc(VERSION)}</p><button class="btn-verre" type="button" data-chercher-maj>Rechercher une mise à jour</button>${blocInstaller()}
       <button class="btn-verre" type="button" data-actualiser>Tout relire sur le serveur</button><button class="btn-verre danger" type="button" data-deconnexion>Se déconnecter</button><button class="btn-verre" type="button" data-fermer>Fermer</button>`);
   }
   function feuilleMessage(m) {
@@ -318,7 +514,11 @@
     if (t.closest('[data-deconnexion]')) { S.feuille = null; if (S.canal) sb.removeChannel(S.canal); await sb.auth.signOut(); return; }
     if (t.closest('[data-chercher-maj]')) { const b = t.closest('[data-chercher-maj]'); b.disabled = true; b.textContent = 'Recherche…'; const r = await rechargerSiNouvelle(null, true); S.feuille = null; rendre(true); if (!r) toast(`FMD est à jour (version ${VERSION}).`); return; }
     if (t.closest('[data-actualiser]')) { S.feuille = null; await Promise.all([chargerProfils(), chargerMessages(), chargerTaches(), chargerAgenda(), chargerCRM()]); rendre(); toast('À jour avec le serveur.'); return; }
-    if (t.closest('[data-ajouter]')) { if (S.route === 'agenda') feuilleRdv(); else feuilleTache(); return; }
+    if (t.closest('[data-ajouter]')) { if (S.route === 'agenda') feuilleRdv(); else if (S.route === 'clients' || S.route === 'client') nouveauDevis(S.route === 'client' ? S.client : null); else feuilleTache(); return; }
+    if (t.closest('[data-nouveau-devis]')) { nouveauDevis(t.closest('[data-nouveau-devis]').dataset.nouveauDevis || null); return; }
+    const fc = t.closest('[data-fiche-client]'); if (fc) { S.client = fc.dataset.ficheClient; S.route = 'client'; rendre(); window.scrollTo(0, 0); return; }
+    const fp = t.closest('[data-produit]'); if (fp && S.route === 'stock') { feuilleProduit(fp.dataset.produit); return; }
+    if (await clicDevis(t)) return;
     if (t.closest('[data-nouveau-rdv]')) { feuilleRdv(); return; }
     if (t.closest('[data-nouvelle-tache]')) { feuilleTache(); return; }
     const j = t.closest('[data-jour]'); if (j) { S.jour = j.dataset.jour; rendre(true); return; }
@@ -353,6 +553,11 @@
   ['pointerup', 'pointercancel', 'pointermove'].forEach((ev) => app.addEventListener(ev, () => clearTimeout(appui)));
   app.addEventListener('contextmenu', (e) => { if (e.target.closest('[data-msg]')) e.preventDefault(); });
 
+  app.addEventListener('input', (e) => {
+    const r = e.target.closest('[data-recherche]'); if (!r) return;
+    if (r.dataset.recherche === 'clients') { S.rechClients = r.value; rendre(true); }
+    if (r.dataset.recherche === 'stock') { S.rechStock = r.value; lancerRechercheStock(); }
+  });
   app.addEventListener('change', (e) => { if (e.target.matches('[data-fichier], [data-fichier-photo]')) { const f = [...e.target.files]; e.target.value = ''; envoyerFichiers(f); } });
   app.addEventListener('keydown', (e) => { if (e.target.matches('[data-texte]') && e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); e.target.form.requestSubmit(); } });
   app.addEventListener('submit', async (e) => {
@@ -373,7 +578,7 @@
       S.feuille = null; await chargerTaches(); rendre(); toast('Tâche ajoutée.'); return;
     }
   });
-  window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (S.profil && /^(accueil|agenda|taches|messages)$/.test(h) && h !== S.route) aller(h); });
+  window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (S.profil && ROUTES.test(h) && h !== 'devis' && h !== S.route) aller(h); });
   window.addEventListener('resize', () => { if (S.profil) rendre(true); });
 
   // ================= mises à jour (même version que le logiciel FMD sur PC) =================
