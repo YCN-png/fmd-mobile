@@ -1,0 +1,4 @@
+# Version web (Cloudflare) : fichiers d'app/ à NE PAS publier tels quels.
+# Le Radar est exécuté par le serveur (web/worker.mjs), son code n'a pas à être téléchargeable.
+modules/radar
+.assetsignore

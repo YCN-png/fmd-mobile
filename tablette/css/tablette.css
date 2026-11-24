@@ -1,0 +1,4 @@
+/* FMD tablette (APK) : réglages tactiles, ajoutés seulement dans l'APK par preparer.js. */
+html.tablette { -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+html.tablette body { -webkit-user-select: none; user-select: none; }
+html.tablette input, html.tablette textarea, html.tablette select, html.tablette [contenteditable] { -webkit-user-select: text; user-select: text; }
