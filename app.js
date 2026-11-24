@@ -5,6 +5,7 @@
 // D.A. FMD Signature (maquette V2 : https://claude.ai/artifact/6T9TEbxaE1DHg7L7GVLF56). Détail : cerveau/Mobile.md.
 (function () {
   'use strict';
+  const VERSION = "0.4.140"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
   const C = window.FMD_CONFIG || {};
   const sb = window.supabase.createClient(C.supabaseUrl, C.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'fmd-mobile-session' } });
   const app = document.getElementById('app');
@@ -300,7 +301,7 @@
       <button class="btn-metal" type="submit">Ajouter</button><button class="btn-verre" type="button" data-fermer>Annuler</button></form>`);
   }
   function feuilleCompte() {
-    ouvrirFeuille(`<h3>${esc(nomDe(S.profil))}</h3><p class="vide" style="padding:0">${esc(S.user.email || '')}</p><p class="vide" style="padding:0">Données synchronisées avec le logiciel FMD sur PC.</p>
+    ouvrirFeuille(`<h3>${esc(nomDe(S.profil))}</h3><p class="vide" style="padding:0">${esc(S.user.email || '')}</p><p class="vide" style="padding:0">Données synchronisées avec le logiciel FMD sur PC.</p><p class="vide" style="padding:0">Version FMD ${esc(VERSION)}</p>
       <button class="btn-verre" type="button" data-actualiser>Tout relire sur le serveur</button><button class="btn-verre danger" type="button" data-deconnexion>Se déconnecter</button><button class="btn-verre" type="button" data-fermer>Fermer</button>`);
   }
   function feuilleMessage(m) {
@@ -373,6 +374,29 @@
   });
   window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (S.profil && /^(accueil|agenda|taches|messages)$/.test(h) && h !== S.route) aller(h); });
   window.addEventListener('resize', () => { if (S.profil) rendre(true); });
+
+  // ================= mises à jour (même version que le logiciel FMD sur PC) =================
+  // outils/deployer.ps1 publie le PC ET cette appli avec le même numéro, puis envoie le signal « nouvelle-version » (canal
+  // fmd-deploiement). L'appli attend que la nouvelle version soit en ligne (version.json) puis se recharge toute seule —
+  // jamais pendant une saisie. Au retour dans l'appli, version.json est aussi vérifié (signal manqué, téléphone en veille).
+  let versionAttendue = null; let surveillance = null;
+  async function versionEnLigne() { try { const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' }); return r.ok ? (await r.json()).version : null; } catch { return null; } }
+  const occupe = () => { const t = app.querySelector('[data-texte]'); return !!S.feuille || !!(t && t.value.trim()); };
+  async function rechargerSiNouvelle(attendue) {
+    const v = await versionEnLigne(); if (!v || v === VERSION || (attendue && v !== attendue)) return false;
+    if (occupe()) { setTimeout(() => rechargerSiNouvelle(attendue), 5000); return true; }
+    toast(`Mise à jour FMD ${v}…`);
+    try { const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch { /* rechargement simple */ }
+    setTimeout(() => location.reload(), 1200); return true;
+  }
+  function attendreVersion(v) {
+    versionAttendue = v; clearInterval(surveillance); let n = 0;
+    surveillance = setInterval(async () => { n++; if (await rechargerSiNouvelle(versionAttendue) || n > 40) clearInterval(surveillance); }, 15000);
+    rechargerSiNouvelle(v);
+  }
+  sb.channel('fmd-deploiement').on('broadcast', { event: 'nouvelle-version' }, (m) => { const v = m && m.payload && m.payload.version; if (v && v !== VERSION) attendreVersion(v); }).subscribe();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') rechargerSiNouvelle(null); });
+  window.FMDMobile = { version: VERSION, rechargerSiNouvelle };
 
   // ================= démarrage =================
   let demarre = null;
