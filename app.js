@@ -5,7 +5,7 @@
 // D.A. FMD Signature (maquette V2 : https://claude.ai/artifact/6T9TEbxaE1DHg7L7GVLF56). Détail : cerveau/Mobile.md.
 (function () {
   'use strict';
-  const VERSION = "0.4.142"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
+  const VERSION = "0.4.143"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
   const C = window.FMD_CONFIG || {};
   const sb = window.supabase.createClient(C.supabaseUrl, C.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'fmd-mobile-session' } });
   const app = document.getElementById('app');
@@ -47,6 +47,7 @@
     coche: '<path d="M5 12l5 5 9-10"></path>',
     clients: '<circle cx="9" cy="8" r="4"></circle><path d="M2 21a7 7 0 0 1 14 0"></path><path d="M17 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"></path>',
     stock: '<path d="M12 2l9 5v10l-9 5-9-5V7z"></path><path d="M3 7l9 5 9-5M12 12v10"></path>',
+    commande: '<path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 8H6"></path><circle cx="10" cy="20" r="1.4"></circle><circle cx="17" cy="20" r="1.4"></circle>',
     devis: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6M12 12v6M9 15h6"></path>',
     tel: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"></path>',
     carte: '<path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"></path><circle cx="12" cy="10" r="2.5"></circle>',
@@ -193,6 +194,7 @@
         <section class="widget large" aria-label="Commandes à suivre"><div class="tete"><h2>Commandes à suivre</h2><small>CRM</small></div>${cmds.length ? `<div class="cartes">${cmds.map((c) => `<div class="carte-blanche"><div class="l1"><b>${esc(c.tiers)}</b><span class="etat ${c.etat[1]}">${esc(c.etat[0])}</span></div><small>${esc(c.ref)} · ${euros(c.ht)} HT</small></div>`).join('')}</div>` : '<p class="vide">Aucune commande en cours.</p>'}</section>
         <section class="widget" aria-label="Actions rapides"><div class="actions">
           <button type="button" class="action metal" data-nouveau-devis>${ico('devis', 24)}Nouveau devis</button>
+          <button type="button" class="action metal" data-nouvelle-commande>${ico('commande', 24)}Nouvelle commande</button>
           <button type="button" class="action" data-nouveau-rdv>${ico('agenda', 24)}Rendez-vous</button>
           <button type="button" class="action" data-nouvelle-tache>${ico('taches', 24)}Tâche</button>
           <button type="button" class="action" data-aller="taches">${ico('taches', 24)}Mes tâches</button></div></section>
@@ -347,7 +349,7 @@
     return `${entete(t.prospect && !t.client ? 'Prospect' : 'Client', esc(t.nom), 'clients')}
       <div class="grille accueil">
         <section class="widget chaud large"><div style="display:flex;align-items:center;gap:14px">${avatarTiers(t, 64)}<div style="min-width:0"><b style="font-size:18px">${esc(t.nom)}</b><div class="vide" style="padding:2px 0">${esc([adresse, t.code_client].filter(Boolean).join(' · ') || '—')}</div></div></div>
-          <div class="pastilles" style="margin-top:12px">${t.tel || t.portable ? `<a class="btn-verre" href="tel:${esc(String(t.tel || t.portable).replace(/\s/g, ''))}">${ico('tel', 18)}Appeler</a>` : ''}${adresse ? `<a class="btn-verre" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresse)}" target="_blank" rel="noopener">${ico('carte', 18)}Itinéraire</a>` : ''}${t.email ? `<a class="btn-verre" href="mailto:${esc(t.email)}">${ico('mail', 18)}E-mail</a>` : ''}<button type="button" class="btn-metal" style="min-height:44px;font-size:14px" data-nouveau-devis="${esc(t.id)}">${ico('plus', 18, 2.4)}Nouveau devis</button></div></section>
+          <div class="pastilles" style="margin-top:12px">${t.tel || t.portable ? `<a class="btn-verre" href="tel:${esc(String(t.tel || t.portable).replace(/\s/g, ''))}">${ico('tel', 18)}Appeler</a>` : ''}${adresse ? `<a class="btn-verre" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresse)}" target="_blank" rel="noopener">${ico('carte', 18)}Itinéraire</a>` : ''}${t.email ? `<a class="btn-verre" href="mailto:${esc(t.email)}">${ico('mail', 18)}E-mail</a>` : ''}<button type="button" class="btn-metal" style="min-height:44px;font-size:14px" data-nouveau-devis="${esc(t.id)}">${ico('plus', 18, 2.4)}Nouveau devis</button><button type="button" class="btn-metal" style="min-height:44px;font-size:14px" data-nouvelle-commande="${esc(t.id)}">${ico('commande', 18)}Nouvelle commande</button></div></section>
         <section class="widget"><div class="tete"><h2>Cette année</h2></div><div class="ventes"><div class="chiffres"><span class="gros">${euros(ca)}</span><span class="vide" style="padding:0">CA HT (commandes)</span></div></div></section>
         <section class="widget"><div class="tete"><h2>Encours</h2></div><div class="ventes"><div class="chiffres"><span class="gros">${euros(encours)}</span><span class="vide" style="padding:0">factures non payées TTC</span></div></div></section>
         <section class="widget large"><div class="tete"><h2>Devis, commandes, factures</h2><small>${docs.length}</small></div>${docs.length ? `<div class="cartes">${docs.slice(0, 12).map((d) => { const e = ETATS_DOC[d.etat] || [d.etat || '', '']; return `<div class="carte-blanche"><div class="l1"><b>${esc(d.ref)}</b><span class="etat ${e[1]}">${esc(e[0])}</span></div><small>${esc(d._t)} · ${d.date ? new Date(d.date + 'T12:00:00').toLocaleDateString('fr-FR') : ''} · ${euros(htD(d))} HT</small><small>${esc(((d.lignes || [])[0] || {}).desc || '')}${(d.lignes || []).length > 1 ? ` + ${(d.lignes || []).length - 1}` : ''}</small></div>`; }).join('')}</div>` : '<p class="vide">Aucun document.</p>'}</section>
@@ -392,7 +394,7 @@
   }
 
   // ---------- devis en 3 étapes (même logique que le CRM du PC : js/erp-commerce.js, erp-donnees.js, erp-prix.js) ----------
-  function nouveauDevis(tiersId) { S.devis = { etape: tiersId ? 2 : 1, tiers: tiersId || null, lignes: [], note: '' }; if (!S.produitsCharges) lancerRechercheStock(); S.route = 'devis'; S.feuille = null; rendre(); window.scrollTo(0, 0); }
+  function nouveauDevis(tiersId, type = 'prop') { S.devis = { type, etape: tiersId ? 2 : 1, tiers: tiersId || null, lignes: [], note: '', article: null, saisie: null }; if (!S.produitsCharges) lancerRechercheStock(); S.route = 'devis'; S.feuille = null; rendre(); window.scrollTo(0, 0); }
   function prixPour(tiersId, p) { // D.prixPour : prix négocié client > prix promo en cours > prix net (+ remise client)
     const t = tiersDe(tiersId) || {}; const remise = +t.remise || 0; const j = aujISO();
     const spec = ((S.crm && S.crm.prixClients) || []).find((x) => x.tiers === tiersId && x.produit === p.id);
@@ -400,12 +402,34 @@
     if (+p.prix_promo > 0 && (!p.promo_du || p.promo_du <= j) && (!p.promo_au || p.promo_au >= j)) return { pu: +p.prix_promo, remise: 0, auto: 'prix promo' };
     return { pu: prixNet(p), remise, auto: 'prix net' };
   }
+  // ---------- remises autorisées (mêmes règles que le PC : app/js/erp-prix.js) ----------
+  // Demande du 25/11/2026 : « en cliquant sur l'article, une page avec le prix net et pouvoir saisir une remise jusqu'à la remise
+  // maximale, bloquer la remise supérieure au maximum autorisé ». Remise max = p.remise_max (vide = 40 %) ou plus selon la quantité
+  // (p.remises_qte), comptée sur le prix promo s'il y en a un, sinon sur le prix net. Au-delà : impossible sur le téléphone.
+  const REMISE_MAX_DEFAUT = 40;
+  const remiseMaxUnite = (p) => (p && p.remise_max !== undefined && p.remise_max !== null && p.remise_max !== '' ? +p.remise_max : REMISE_MAX_DEFAUT);
+  const remiseAutorisee = (p, qte) => ((p && p.remises_qte) || []).filter((x) => +qte >= +x.qte && +x.qte > 0).reduce((m, x) => Math.max(m, +x.remise || 0), remiseMaxUnite(p));
+  const promoActive = (p) => { const j = aujISO(); return !!(p && +p.prix_promo > 0 && (!p.promo_du || p.promo_du <= j) && (!p.promo_au || p.promo_au >= j)); };
+  const prixReference = (p) => { const net = prixNet(p); const promo = promoActive(p) ? +p.prix_promo : 0; return promo && promo < net ? promo : net; };
+  // Remise maximale (%) possible sur le prix unitaire de la ligne (prix net, promo ou prix client) : le prix remisé ne descend
+  // jamais sous « prix de référence − remise autorisée ».
+  const remiseMaxLigne = (p, pu, qte) => { const ref = prixReference(p); if (!p || !(+pu > 0) || !ref) return 0; const plancher = ref * (1 - remiseAutorisee(p, qte) / 100); return Math.max(0, Math.floor((1 - plancher / pu) * 1000 + 1e-6) / 10); };
+  // Type de prix figé à la validation (comme D.figerPrix du PC : commissions)
+  function typePrix(l) { const p = S.produitsCache[l.produit]; if (!p) return null; const net = prixNet(p); const eff = (+l.pu || 0) * (1 - (+l.remise || 0) / 100); const autorise = remiseAutorisee(p, l.qte);
+    if (!net) return { type: 'net', remise: 0, autorise, net };
+    const promo = promoActive(p) ? +p.prix_promo : 0;
+    if (promo && eff >= promo - 0.005 && eff < net - 0.005) return { type: 'promo', remise: (1 - eff / net) * 100, autorise, net };
+    if (eff >= net - 0.005) return { type: 'net', remise: 0, autorise, net };
+    const remise = (1 - eff / net) * 100; const base = promo && promo < net ? (1 - eff / promo) * 100 : remise;
+    return { type: base <= autorise + 0.05 ? 'reduction' : 'hors', remise, autorise, net }; }
+  const pc = (x) => `${(Math.round((+x || 0) * 10) / 10).toLocaleString('fr-FR')} %`;
   const prixRevient = (p) => { if (!p) return 0; if (+p.pmp > 0) return +p.pmp; const f = (p.fournisseurs || []).map((x) => (+x.pu || 0) * (1 - (+x.remise || 0) / 100)).filter((x) => x > 0); return f.length ? rond2(Math.min(...f)) : 0; };
   function pageDevis() {
     const d = S.devis; if (!d) return pageAccueil();
-    const t = tiersDe(d.tiers);
+    if (d.article && S.produitsCache[d.article]) return pageArticle(d);
+    const t = tiersDe(d.tiers); const cmd = d.type === 'cmd';
     const etapes = `<ol class="etapes" aria-label="Étapes">${['Client', 'Produits', 'Envoyer'].map((n, i) => `<li class="${d.etape === i + 1 ? 'actif' : d.etape > i + 1 ? 'fait' : ''}">${d.etape > i + 1 ? '✓' : i + 1}<span>${n}</span></li>`).join('')}</ol>`;
-    const tete = `<div class="fil-tete" style="border:0;padding:0 0 8px"><button type="button" class="retour" data-devis-retour aria-label="Retour">${ico('retour', 20, 2.2)}</button><b style="font:700 22px var(--titre)">Nouveau devis</b></div>${etapes}`;
+    const tete = `<div class="fil-tete" style="border:0;padding:0 0 8px"><button type="button" class="retour" data-devis-retour aria-label="Retour">${ico('retour', 20, 2.2)}</button><b style="font:700 22px var(--titre)">${cmd ? 'Nouvelle commande' : 'Nouveau devis'}</b></div>${etapes}`;
     const total = { ht: htD(d), ttc: ttcD(d), marge: rond2(htD(d) - d.lignes.reduce((s, l) => s + prixRevient(S.produitsCache[l.produit]) * l.qte, 0)) };
     if (d.etape === 1) {
       const q = normaliser(S.rechClients);
@@ -414,56 +438,122 @@
         <section class="widget"><div class="convs">${l.map((x) => `<button type="button" class="conv" data-devis-client="${esc(x.id)}">${avatarTiers(x)}<span class="txt"><b>${esc(x.nom)}</b><small>${esc([x.ville, x.remise ? `remise ${x.remise} %` : 'prix net'].filter(Boolean).join(' · '))}</small></span><span class="droite">›</span></button>`).join('') || '<p class="vide">Aucun client.</p>'}</div></section>`;
     }
     const recap = `<section class="widget chaud panier"><div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">${avatarTiers(t, 44)}<div style="flex:1;min-width:0"><b>${esc(t ? t.nom : '—')}</b><div class="vide" style="padding:0;font-size:12px">${esc(t && t.remise ? `remise client ${t.remise} %` : 'prix net')}</div></div>${d.etape === 2 ? '<button type="button" class="btn-verre" data-devis-etape="1">Changer</button>' : ''}</div>
-      ${d.lignes.map((l, i) => `<div class="ligne-devis"><div class="txt"><b>${esc(l.desc)}</b><small>${euros(l.pu)}${l.remise ? ` −${l.remise} %` : ''} · ${esc(l.auto)}</small></div><div class="stepper" role="group" aria-label="Quantité"><button type="button" data-qte="${i}" data-pas="-1" aria-label="Retirer un">−</button><span>${l.qte}</span><button type="button" data-qte="${i}" data-pas="1" aria-label="Ajouter un">+</button></div></div>`).join('') || '<p class="vide">Ajoutez des produits.</p>'}
+      ${d.lignes.map((l, i) => `<div class="ligne-devis"><button type="button" class="txt" data-voir-article="${esc(l.produit)}" title="Prix et remise"><b>${esc(l.desc)}</b><small>${euros(l.pu)}${l.remise ? ` −${pc(l.remise)}` : ''} · ${esc(l.auto)}${l.remise ? '' : ' · remise ›'}</small></button><div class="stepper" role="group" aria-label="Quantité"><button type="button" data-qte="${i}" data-pas="-1" aria-label="Retirer un">−</button><span>${l.qte}</span><button type="button" data-qte="${i}" data-pas="1" aria-label="Ajouter un">+</button></div></div>`).join('') || '<p class="vide">Ajoutez des produits.</p>'}
       <div class="totaux"><span>Total HT <b>${euros(total.ht)}</b></span>${blocMarge(total.marge)}<span class="ttc">TTC <b>${euros(total.ttc)}</b></span></div></section>`;
     if (d.etape === 2) {
       if (!S.produitsCharges) lancerRechercheStock();
       const dans = new Map(d.lignes.map((l) => [l.produit, l.qte]));
-      const prods = S.produitsCharges === true ? S.produits.slice(0, 40).map((p) => { const px = prixPour(d.tiers, p); return `<div class="carte-produit">${imageProduit(p, 72)}<div class="txt"><b>${esc(p.libelle || p.ref)}</b><small>${esc(p.ref || '')} · stock ${(+p.stock || 0).toLocaleString('fr-FR')}</small><b class="prix">${euros(px.pu)}${px.remise ? ` <small>−${px.remise} %</small>` : ''}</b></div><button type="button" class="ajout ${dans.has(p.id) ? 'dans' : ''}" data-ajout-produit="${esc(p.id)}" aria-label="Ajouter ${esc(p.libelle || p.ref)}">${dans.has(p.id) ? '×' + dans.get(p.id) : '+'}</button></div>`; }).join('') : '<p class="vide">Chargement du catalogue…</p>';
-      return `${tete}<div class="devis-grille"><div><label class="recherche">${ico('cherche', 18)}<input type="search" data-recherche="stock" value="${esc(S.rechStock)}" placeholder="Chercher un produit ou un code-barres" aria-label="Chercher un produit"></label><div class="produits-grille">${prods}</div></div>
+      // Articles en widgets (25/11/2026) : toucher l'article = page article (prix net, remise) ; « + » = ajout direct
+      const prods = S.produitsCharges === true ? S.produits.slice(0, 40).map((p) => { const px = prixPour(d.tiers, p); const st = +p.stock || 0; return `<div class="widget-produit" data-voir-article="${esc(p.id)}" role="button" tabindex="0" aria-label="${esc(p.libelle || p.ref)} : prix et remise"><div class="visuel">${imageProduit(p, 92)}${promoActive(p) ? '<span class="badge-promo">Promo</span>' : ''}</div><b class="nom">${esc(p.libelle || p.ref)}</b><small>${esc(p.ref || '')}</small><small class="${st > 0 ? 'en-stock' : 'rupture'}">${st > 0 ? `${st.toLocaleString('fr-FR')} en stock` : 'Rupture'}</small><div class="bas"><b class="prix">${euros(px.pu)}<small> HT</small></b><button type="button" class="ajout ${dans.has(p.id) ? 'dans' : ''}" data-ajout-produit="${esc(p.id)}" aria-label="Ajouter ${esc(p.libelle || p.ref)}">${dans.has(p.id) ? '×' + dans.get(p.id) : '+'}</button></div></div>`; }).join('') : '<p class="vide">Chargement du catalogue…</p>';
+      return `${tete}<div class="devis-grille"><div><label class="recherche">${ico('cherche', 18)}<input type="search" data-recherche="stock" value="${esc(S.rechStock)}" placeholder="Chercher un produit ou un code-barres" aria-label="Chercher un produit"></label><div class="produits-widgets">${prods}</div></div>
         <div>${recap}<button type="button" class="btn-metal plein" data-devis-etape="3" ${d.lignes.length ? '' : 'disabled'}>Continuer ›</button></div></div>`;
     }
     const controleur = S.profil && S.profil.controle_par && profil(S.profil.controle_par);
     return `${tete}${recap}
-      <section class="widget"><label class="champ">Note sur le devis (visible par le client)<textarea data-devis-note rows="3" maxlength="2000">${esc(d.note)}</textarea></label><p class="vide">Valable 15 jours. ${t && t.cond ? 'Paiement : ' + esc(t.cond) + '.' : ''}</p></section>
-      <button type="button" class="btn-metal plein" data-devis-valider>${controleur ? `Valider et envoyer à ${esc(nomDe(controleur))}` : 'Valider le devis'}</button>
+      <section class="widget"><label class="champ">Note sur ${cmd ? 'la commande' : 'le devis'} (visible par le client)<textarea data-devis-note rows="3" maxlength="2000">${esc(d.note)}</textarea></label><p class="vide">${cmd ? 'Commande client : préparation et livraison suivies sur le PC.' : 'Valable 15 jours.'} ${t && t.cond ? 'Paiement : ' + esc(t.cond) + '.' : ''}</p></section>
+      <button type="button" class="btn-metal plein" data-devis-valider>${controleur ? `Valider et envoyer à ${esc(nomDe(controleur))}` : cmd ? 'Valider la commande' : 'Valider le devis'}</button>
       <button type="button" class="btn-verre plein" data-devis-brouillon>Enregistrer en brouillon</button>`;
+  }
+  // Page article (25/11/2026) : prix net, prix de la ligne, quantité, remise (bloquée au maximum autorisé)
+  function saisieArticle(d) {
+    const p = S.produitsCache[d.article]; const l = d.lignes.find((x) => x.produit === p.id);
+    if (!d.saisie || d.saisie.produit !== p.id) { const px = l ? { pu: l.pu, auto: l.auto, remise: l.remise } : prixPour(d.tiers, p); const q = l ? l.qte : 1;
+      d.saisie = { produit: p.id, pu: +px.pu || 0, auto: px.auto, qte: q, remise: String(Math.min(+px.remise || 0, remiseMaxLigne(p, px.pu, q)) || '') }; }
+    const x = d.saisie; const max = remiseMaxLigne(p, x.pu, x.qte); const r = x.remise === '' ? 0 : Number(String(x.remise).replace(',', '.'));
+    const invalide = !Number.isFinite(r) || r < 0; const trop = !invalide && r > max + 1e-9;
+    const pu = rond2(x.pu * (1 - (invalide || trop ? 0 : r) / 100));
+    return { p, l, x, max, r, invalide, trop, pu, ht: rond2(pu * x.qte), ttc: rond2(pu * x.qte * 1.2) };
+  }
+  function pageArticle(d) {
+    const a = saisieArticle(d); const { p, l, x } = a; const net = prixNet(p); const cmd = d.type === 'cmd';
+    const paliers = (p.remises_qte || []).filter((q) => +q.qte > 0 && +q.remise > remiseMaxUnite(p)).sort((m, n) => m.qte - n.qte);
+    const st = +p.stock || 0; const emp = emplacements(p);
+    return `<div class="fil-tete" style="border:0;padding:0 0 8px"><button type="button" class="retour" data-article-retour aria-label="Retour">${ico('retour', 20, 2.2)}</button><b style="font:700 20px var(--titre)">Article</b></div>
+      <div class="article-grille"><section class="widget article-fiche"><div class="visuel">${imageProduit(p, 180)}</div><h2>${esc(p.libelle || p.ref)}</h2>
+        <small>${esc([p.ref, p.marque].filter(Boolean).join(' · '))}</small><small class="${st > 0 ? 'en-stock' : 'rupture'}">${st > 0 ? `${st.toLocaleString('fr-FR')} en stock` : 'Rupture de stock'}${emp.length ? ' · ' + esc(emp[0]) : ''}</small></section>
+      <section class="widget chaud article-prix">
+        <div class="ligne-prix"><span>Prix net HT</span><b>${euros(net)}</b></div>
+        ${promoActive(p) ? `<div class="ligne-prix"><span>Prix promo HT</span><b>${euros(+p.prix_promo)}</b></div>` : ''}
+        ${x.auto === 'prix client' ? `<div class="ligne-prix"><span>Prix négocié pour ce client</span><b>${euros(x.pu)}</b></div>` : ''}
+        <div class="ligne-prix"><span>Quantité</span><div class="stepper" role="group" aria-label="Quantité"><button type="button" data-art-qte="-1" aria-label="Retirer un">−</button><span data-art-q>${x.qte}</span><button type="button" data-art-qte="1" aria-label="Ajouter un">+</button></div></div>
+        <label class="champ">Remise (%)<input type="number" inputmode="decimal" min="0" max="${a.max}" step="0.5" data-art-remise value="${esc(x.remise)}" placeholder="0"></label>
+        <p class="aide-remise" data-art-max>Remise maximale autorisée : <b>${pc(a.max)}</b>${paliers.length ? ` · ${paliers.map((q) => `${pc(q.remise)} dès ${q.qte} unités`).join(', ')}` : ''}</p>
+        <p class="erreur-remise" data-art-erreur ${a.trop || a.invalide ? '' : 'hidden'}>${a.invalide ? 'Remise invalide.' : `Remise supérieure au maximum autorisé (${pc(a.max)}) : impossible.`}</p>
+        <div class="totaux"><span>Prix unitaire HT <b data-art-pu>${euros(a.pu)}</b></span><span>Total HT <b data-art-ht>${euros(a.ht)}</b></span><span class="ttc">TTC <b data-art-ttc>${euros(a.ttc)}</b></span></div>
+        <button type="button" class="btn-metal plein" data-art-ok ${a.trop || a.invalide ? 'disabled' : ''}>${l ? 'Mettre à jour la ligne' : cmd ? 'Ajouter à la commande' : 'Ajouter au devis'}</button>
+        ${l ? '<button type="button" class="btn-verre plein danger" data-art-retirer>Retirer cet article</button>' : ''}</section></div>`;
+  }
+  // Mise à jour en direct pendant la saisie de la remise (sans redessiner l'écran : le clavier reste ouvert)
+  function majArticle() {
+    const d = S.devis; if (!d || !d.article) return; const a = saisieArticle(d);
+    const q = (s2) => app.querySelector(s2);
+    const e = q('[data-art-erreur]'); if (e) { e.hidden = !(a.trop || a.invalide); e.textContent = a.invalide ? 'Remise invalide.' : `Remise supérieure au maximum autorisé (${pc(a.max)}) : impossible.`; }
+    const ch = q('[data-art-remise]'); if (ch) { ch.max = a.max; ch.classList.toggle('trop', a.trop || a.invalide); ch.setAttribute('aria-invalid', String(a.trop || a.invalide)); }
+    const b = q('[data-art-ok]'); if (b) b.disabled = a.trop || a.invalide;
+    const m = q('[data-art-max] b'); if (m) m.textContent = pc(a.max);
+    [['[data-art-pu]', a.pu], ['[data-art-ht]', a.ht], ['[data-art-ttc]', a.ttc]].forEach(([k, v]) => { const el = q(k); if (el) el.textContent = euros(v); });
   }
   async function clicDevis(t) {
     const d = S.devis; if (!d) return false;
-    if (t.closest('[data-devis-retour]')) { if (d.etape > 1) d.etape -= 1; else if (!d.lignes.length || window.confirm('Abandonner ce devis ?')) { S.devis = null; S.route = 'accueil'; } rendre(); return true; }
+    const va = t.closest('[data-voir-article]'); if (va && !t.closest('[data-ajout-produit]')) { if (!S.produitsCache[va.dataset.voirArticle]) return true; d.article = va.dataset.voirArticle; d.saisie = null; rendre(); window.scrollTo(0, 0); return true; }
+    if (t.closest('[data-article-retour]')) { d.article = null; d.saisie = null; rendre(); return true; }
+    const aq = t.closest('[data-art-qte]'); if (aq && d.saisie) { d.saisie.qte = Math.max(1, d.saisie.qte + +aq.dataset.artQte); const sp = app.querySelector('[data-art-q]'); if (sp) sp.textContent = d.saisie.qte; majArticle(); return true; }
+    if (t.closest('[data-art-ok]') && d.saisie) { const a = saisieArticle(d); if (a.trop || a.invalide) { toast(`Remise bloquée : maximum autorisé ${pc(a.max)}.`); return true; }
+      const val = { produit: a.p.id, desc: a.p.libelle || [a.p.modele, a.p.couleur, a.p.taille].filter(Boolean).join(' ') || a.p.ref, tva: 20, qte: a.x.qte, pu: a.x.pu, remise: Math.round(a.r * 10) / 10, auto: a.x.auto };
+      if (a.l) Object.assign(a.l, val); else d.lignes.push(val); d.article = null; d.saisie = null; rendre(); toast(a.l ? 'Ligne mise à jour.' : 'Article ajouté.'); return true; }
+    if (t.closest('[data-art-retirer]') && d.saisie) { const i = d.lignes.findIndex((x) => x.produit === d.saisie.produit); if (i >= 0) d.lignes.splice(i, 1); d.article = null; d.saisie = null; rendre(); toast('Article retiré.'); return true; }
+    if (t.closest('[data-devis-retour]')) { if (d.etape > 1) d.etape -= 1; else if (!d.lignes.length || window.confirm(d.type === 'cmd' ? 'Abandonner cette commande ?' : 'Abandonner ce devis ?')) { S.devis = null; S.route = 'accueil'; } rendre(); return true; }
     const c = t.closest('[data-devis-client]'); if (c) { d.tiers = c.dataset.devisClient; d.lignes.forEach((l) => { const p = S.produitsCache[l.produit]; if (p) Object.assign(l, prixPour(d.tiers, p)); }); d.etape = 2; S.rechStock = ''; lancerRechercheStock(); rendre(); return true; }
     const e = t.closest('[data-devis-etape]'); if (e) { d.etape = +e.dataset.devisEtape; rendre(); window.scrollTo(0, 0); return true; }
     const a = t.closest('[data-ajout-produit]');
     if (a) { const p = S.produitsCache[a.dataset.ajoutProduit]; if (!p) return true; const l = d.lignes.find((x) => x.produit === p.id);
-      if (l) l.qte += 1; else d.lignes.push({ produit: p.id, desc: p.libelle || [p.modele, p.couleur, p.taille].filter(Boolean).join(' ') || p.ref, tva: 20, qte: 1, ...prixPour(d.tiers, p) });
+      if (l) l.qte += 1; else { const px = prixPour(d.tiers, p); d.lignes.push({ produit: p.id, desc: p.libelle || [p.modele, p.couleur, p.taille].filter(Boolean).join(' ') || p.ref, tva: 20, qte: 1, ...px, remise: Math.min(+px.remise || 0, remiseMaxLigne(p, px.pu, 1)) }); }
       rendre(true); return true; }
-    const q = t.closest('[data-qte]'); if (q) { const l = d.lignes[+q.dataset.qte]; if (!l) return true; l.qte += +q.dataset.pas; if (l.qte <= 0) d.lignes.splice(+q.dataset.qte, 1); rendre(true); return true; }
+    const q = t.closest('[data-qte]'); if (q) { const l = d.lignes[+q.dataset.qte]; if (!l) return true; l.qte += +q.dataset.pas; if (l.qte <= 0) d.lignes.splice(+q.dataset.qte, 1);
+      else { const p = S.produitsCache[l.produit]; const mx = p ? remiseMaxLigne(p, l.pu, l.qte) : +l.remise || 0; if ((+l.remise || 0) > mx) { l.remise = mx; toast(`Remise ramenée à ${pc(mx)} (maximum pour ${l.qte} unité${l.qte > 1 ? 's' : ''}).`); } }
+      rendre(true); return true; }
     if (t.closest('[data-devis-valider]') || t.closest('[data-devis-brouillon]')) { const b = t.closest('button'); b.disabled = true; const valider = !!t.closest('[data-devis-valider]');
       const n = app.querySelector('[data-devis-note]'); if (n) d.note = n.value;
-      try { const r = await enregistrerDevis(d, valider); S.devis = null; S.route = 'client'; S.client = r.tiers; rendre(); toast(valider ? `Devis ${r.ref} validé${r.envoye ? ' et envoyé pour contrôle' : ''} : visible sur le PC.` : `Brouillon ${r.ref} enregistré : à finir sur le PC ou ici.`); }
-      catch (er) { b.disabled = false; toast('Devis non enregistré : ' + er.message); } return true; }
+      try { const r = await enregistrerDevis(d, valider); S.devis = null; S.route = 'client'; S.client = r.tiers; rendre(); toast(valider ? `${r.cmd ? 'Commande' : 'Devis'} ${r.ref} validé${r.cmd ? 'e' : ''}${r.envoye ? ' et envoyé' + (r.cmd ? 'e' : '') + ' pour contrôle' : ''} : visible sur le PC.` : `Brouillon ${r.ref} enregistré : à finir sur le PC.`); }
+      catch (er) { b.disabled = false; toast((d.type === 'cmd' ? 'Commande' : 'Devis') + ' non enregistré' + (d.type === 'cmd' ? 'e' : '') + ' : ' + er.message); } return true; }
     return false;
   }
   // Enregistrement dans le CRM en ligne (donnees-fmd/crm/crm.json), comme un PC : lecture de la dernière version du serveur,
   // ajout du devis, nouvelle révision (_rev / _parent) → les PC la fusionnent. Si un PC enregistre entre la lecture et l'envoi,
   // le téléphone relit et recommence (jamais d'écrasement). Puis signal « crm » aux PC ouverts et carte « À contrôler ».
   async function enregistrerDevis(d, valider) {
-    const auteur = nomDe(S.profil); const pad = (n, l) => String(n).padStart(l, '0');
+    const auteur = nomDe(S.profil); const pad = (n, l) => String(n).padStart(l, '0'); const cmd = d.type === 'cmd';
+    // Contrôle avant validation (comme le PC) : remise au-delà de l'autorisé (ex. prix négocié trop bas) → accord de Farid sur le PC
+    if (valider) { const hors = d.lignes.filter((l) => { const x = typePrix(l); return x && x.type === 'hors'; });
+      if (hors.length) throw new Error(`remise au-delà de l’autorisé sur ${hors.map((l) => l.desc).join(', ')} : enregistrez en brouillon, l’accord de Farid se fait sur le PC`); }
     for (let essai = 0; essai < 4; essai++) {
       const { data: blob, error } = await sb.storage.from('donnees-fmd').download('crm/crm.json'); if (error || !blob) throw new Error('CRM illisible (' + ((error && error.message) || 'vide') + ')');
       const db = JSON.parse(await blob.text()); const rev = db._rev;
-      ['propositions', 'evenements', 'tiers'].forEach((k) => { if (!Array.isArray(db[k])) db[k] = []; }); db.compteurs = db.compteurs || {};
-      const date = aujISO(); const maintenant = new Date().toISOString(); const id = 'prop' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      ['propositions', 'commandes', 'factures', 'evenements', 'tiers'].forEach((k) => { if (!Array.isArray(db[k])) db[k] = []; }); db.compteurs = db.compteurs || {};
+      const date = aujISO(); const maintenant = new Date().toISOString(); const id = (cmd ? 'cmd' : 'prop') + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       const prov = (db.compteurs.prov || 0) + 1; let ref;
-      if (valider) { db.compteurs.pr = (db.compteurs.pr || 0) + 1; ref = 'PR-' + pad(db.compteurs.pr, 8); } else { db.compteurs.prov = prov; ref = `(PROV-PR${prov})`; }
+      const cle = cmd ? 'co' : 'pr'; const pre = cmd ? 'CO' : 'PR';
+      if (valider) { db.compteurs[cle] = (db.compteurs[cle] || 0) + 1; ref = pre + '-' + pad(db.compteurs[cle], 8); } else { db.compteurs.prov = prov; ref = `(PROV-${pre}${prov})`; }
       const t = db.tiers.find((x) => x.id === d.tiers) || {};
+      // Encours client (commande validée, comme le PC js/erp-encours.js) : > +5 % du maximum = accord de Farid sur le PC
+      if (cmd && valider && +t.encours_max > 0) {
+        const nonFact = (c) => ['validee', 'en_cours', 'livree'].includes(c.etat) && !c.facturee && !(c.liens || []).some((x) => x.type === 'fact');
+        const avant = db.factures.filter((x) => x.tiers === t.id && !x.payee).reduce((s2, x) => s2 + ttcD(x), 0) + db.commandes.filter((x) => x.tiers === t.id && nonFact(x)).reduce((s2, x) => s2 + ttcD(x), 0);
+        const apres = rond2(avant + ttcD(d)); const dep = (apres - t.encours_max) / t.encours_max;
+        if (dep > 0.05) throw new Error(`encours du client dépassé (${euros(apres)} pour ${euros(t.encours_max)} autorisés) : enregistrez en brouillon, l’accord de Farid se fait sur le PC`);
+        if (dep > 0 && essai === 0 && !window.confirm(`Encours après cette commande : ${euros(apres)} pour ${euros(t.encours_max)} autorisés. Valider quand même ?`)) throw new Error('validation annulée');
+      }
       const fin = new Date(date + 'T12:00:00'); fin.setDate(fin.getDate() + 15);
-      const o = { id, ref, tiers: d.tiers, ref_client: '', ref_fourn: '', date, cond: t.cond || '', mode: t.mode || '', expedition: '', origine: 'Mobile', delai: '', livraison: '',
-        note_pub: d.note || '', note_priv: '', etat: valider ? 'ouvert' : 'brouillon', lignes: d.lignes.map((l) => ({ produit: l.produit, desc: l.desc, tva: 20, pu: rond2(l.pu), qte: l.qte, remise: +l.remise || 0, auto: l.auto })),
-        liens: [], auteur, cree: maintenant, validite: 15, fin: jourISO(fin), modifie: maintenant };
-      db.propositions.push(o);
-      db.evenements.unshift({ id: 'ev' + Date.now().toString(36), d: maintenant, par: auteur, tiers: o.tiers, objet: { type: 'prop', id }, titre: valider ? `Proposition commerciale ${ref} validée (téléphone)` : `Proposition commerciale ${ref} créée (brouillon, téléphone)`, texte: '', type: 'auto' });
+      const lignes = d.lignes.map((l) => { const x = { produit: l.produit, desc: l.desc, tva: 20, pu: rond2(l.pu), qte: l.qte, remise: +l.remise || 0, auto: l.auto };
+        if (valider) { const tp = typePrix(l); if (tp) Object.assign(x, { prix_net: rond2(tp.net), type_prix: tp.type, remise_eff: rond2(tp.remise), remise_autorisee: tp.autorise }); } return x; });
+      const o = cmd
+        ? { id, ref, tiers: d.tiers, ref_client: '', date, livraison: '', cond: t.cond || '', mode: t.mode || '', expedition: '', origine: 'Mobile', etat: valider ? 'validee' : 'brouillon', facturee: false,
+          lignes, note_pub: d.note || '', note_priv: '', auteur, liens: [], cree: maintenant, modifie: maintenant }
+        : { id, ref, tiers: d.tiers, ref_client: '', ref_fourn: '', date, cond: t.cond || '', mode: t.mode || '', expedition: '', origine: 'Mobile', delai: '', livraison: '',
+          note_pub: d.note || '', note_priv: '', etat: valider ? 'ouvert' : 'brouillon', lignes, liens: [], auteur, cree: maintenant, validite: 15, fin: jourISO(fin), modifie: maintenant };
+      (cmd ? db.commandes : db.propositions).push(o);
+      if (cmd && valider && t.id && t.prospect) { t.prospect = false; t.client = true; t.statut_prospect = 'fait'; } // première commande d'un prospect → client
+      db.evenements.unshift({ id: 'ev' + Date.now().toString(36), d: maintenant, par: auteur, tiers: o.tiers, objet: { type: cmd ? 'cmd' : 'prop', id }, titre: valider ? `${cmd ? 'Commande client' : 'Proposition commerciale'} ${ref} validée (téléphone)` : `${cmd ? 'Commande client' : 'Proposition commerciale'} ${ref} créée (brouillon, téléphone)`, texte: '', type: 'auto' });
       if (db.evenements.length > 600) db.evenements.length = 600;
       db._parent = rev || null; db._rev = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
       // Personne n'a enregistré entre-temps ? (sinon on recommence sur la nouvelle version)
@@ -476,11 +566,11 @@
       let envoye = false;
       if (valider && S.profil && S.profil.controle_par && S.profil.controle_par !== moi()) {
         const lignes = o.lignes.map((l) => { const p = S.produitsCache[l.produit]; return { ref: p ? p.ref : '', desc: l.desc, qte: l.qte, pu: l.pu, remise: l.remise, ht: htL(l) }; });
-        const apercu = { type: 'prop', titre: 'Proposition commerciale', ref, role: 'Client', tiers: t.nom || '', ville: [t.cp, t.ville].filter(Boolean).join(' '), date, lignes: lignes.slice(0, 25), nb: lignes.length, ht: htD(o), ttc: ttcD(o), marge: rond2(htD(o) - o.lignes.reduce((s, l) => s + prixRevient(S.produitsCache[l.produit]) * l.qte, 0)) };
-        const libelle = `La proposition commerciale ${ref}`;
-        try { await sb.from('messages').insert({ de: moi(), a: S.profil.controle_par, texte: `🔎 À contrôler : ${auteur} vient de valider ${libelle.toLowerCase()} (${t.nom || ''}) — ${lignes.length} ligne${lignes.length > 1 ? 's' : ''}, ${euros(apercu.ht)} HT.`, lien: { module: 'crm', route: `prop/fiche/${id}`, libelle, controle: true, apercu } }); envoye = true; } catch { /* devis enregistré quand même */ }
+        const apercu = { type: cmd ? 'cmd' : 'prop', titre: cmd ? 'Commande client' : 'Proposition commerciale', ref, role: 'Client', tiers: t.nom || '', ville: [t.cp, t.ville].filter(Boolean).join(' '), date, lignes: lignes.slice(0, 25), nb: lignes.length, ht: htD(o), ttc: ttcD(o), marge: rond2(htD(o) - o.lignes.reduce((s, l) => s + prixRevient(S.produitsCache[l.produit]) * l.qte, 0)) };
+        const libelle = cmd ? `La commande client ${ref}` : `La proposition commerciale ${ref}`;
+        try { await sb.from('messages').insert({ de: moi(), a: S.profil.controle_par, texte: `🔎 À contrôler : ${auteur} vient de valider ${libelle.toLowerCase()} (${t.nom || ''}) — ${lignes.length} ligne${lignes.length > 1 ? 's' : ''}, ${euros(apercu.ht)} HT.`, lien: { module: 'crm', route: `${cmd ? 'cmd' : 'prop'}/fiche/${id}`, libelle, controle: true, apercu } }); envoye = true; } catch { /* devis enregistré quand même */ }
       }
-      return { ref, tiers: o.tiers, envoye };
+      return { ref, tiers: o.tiers, envoye, cmd };
     }
     throw new Error('le CRM change en ce moment sur un autre poste, réessayez dans quelques secondes');
   }
@@ -525,6 +615,7 @@
     if (t.closest('[data-actualiser]')) { S.feuille = null; await Promise.all([chargerProfils(), chargerMessages(), chargerTaches(), chargerAgenda(), chargerCRM()]); rendre(); toast('À jour avec le serveur.'); return; }
     if (t.closest('[data-ajouter]')) { if (S.route === 'agenda') feuilleRdv(); else if (S.route === 'clients' || S.route === 'client') nouveauDevis(S.route === 'client' ? S.client : null); else feuilleTache(); return; }
     if (t.closest('[data-nouveau-devis]')) { nouveauDevis(t.closest('[data-nouveau-devis]').dataset.nouveauDevis || null); return; }
+    if (t.closest('[data-nouvelle-commande]')) { nouveauDevis(t.closest('[data-nouvelle-commande]').dataset.nouvelleCommande || null, 'cmd'); return; }
     const fc = t.closest('[data-fiche-client]'); if (fc) { S.client = fc.dataset.ficheClient; S.route = 'client'; rendre(); window.scrollTo(0, 0); return; }
     const fp = t.closest('[data-produit]'); if (fp && S.route === 'stock') { feuilleProduit(fp.dataset.produit); return; }
     if (await clicDevis(t)) return;
@@ -563,6 +654,7 @@
   app.addEventListener('contextmenu', (e) => { if (e.target.closest('[data-msg]')) e.preventDefault(); });
 
   app.addEventListener('input', (e) => {
+    if (e.target.matches('[data-art-remise]') && S.devis && S.devis.saisie) { S.devis.saisie.remise = e.target.value; majArticle(); return; }
     const r = e.target.closest('[data-recherche]'); if (!r) return;
     if (r.dataset.recherche === 'clients') { S.rechClients = r.value; rendre(true); }
     if (r.dataset.recherche === 'stock') { S.rechStock = r.value; lancerRechercheStock(); }
