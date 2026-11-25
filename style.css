@@ -161,6 +161,16 @@ a { color: var(--rg-clair); }
 .form-tiers .nature input { position: absolute; opacity: 0; pointer-events: none; }
 .form-tiers .nature span { display: flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 999px; border: 1px solid var(--ligne-forte); font-weight: 600; font-size: 14px; }
 .form-tiers .nature input:checked + span { background: linear-gradient(135deg, #F7DAC5, #6F4A3C); color: #080808; border-color: transparent; }
+/* Fiche client : documents filtrés, produits du client, prix client (25/11/2026) */
+.puces-docs { padding: 4px 0 12px; }
+.compte-docs { color: var(--texte-3); font-weight: 700; }
+.w-produits .tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.w-produits .conv .droite { flex: none; }
+.pxc-produit { display: flex; align-items: center; gap: 12px; }
+.pxc-produit div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pxc-produit small { color: var(--texte-3); }
+.conditions .fort { color: var(--rg-clair, #F7DAC5); font-weight: 700; }
+.champ input.trop { border-color: #F3A88F; }
 .form-tiers .aide { margin: -4px 0 0; font-size: 12px; color: var(--texte-3); }
 .feuille .panneau h3 { margin: 0 0 4px; font: 700 18px var(--titre); }
 .feuille .panneau button.danger { color: #F3A88F; }
@@ -393,6 +403,8 @@ a { color: var(--rg-clair); }
 @media (min-width: 900px) {
   .fiche-client { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: auto auto; }
   .w-docs { grid-column: 3 / 5; grid-row: 1 / 3; }
+  .w-docs .docs-tous { max-height: 560px; overflow-y: auto; }
+  .w-produits { grid-column: 1 / 5; }
   .fiche-client .widget { min-height: 300px; }
 }
 

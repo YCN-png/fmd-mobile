@@ -5,7 +5,7 @@
 // D.A. FMD Signature (maquette V2 : https://claude.ai/artifact/6T9TEbxaE1DHg7L7GVLF56). Détail : cerveau/Mobile.md.
 (function () {
   'use strict';
-  const VERSION = "0.4.144.3"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
+  const VERSION = "0.4.144.4"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
   const C = window.FMD_CONFIG || {};
   const sb = window.supabase.createClient(C.supabaseUrl, C.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'fmd-mobile-session' } });
   const app = document.getElementById('app');
@@ -532,7 +532,9 @@
       .filter((d) => d.tiers === t.id && d.etat !== 'annulee').sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const vendues = (db.commandes || []).filter((c) => c.tiers === t.id && c.etat !== 'brouillon' && c.etat !== 'annulee');
     const cmdsAn = vendues.filter((c) => String(c.date).slice(0, 4) === an);
-    chargerCouts([...idsLignes(cmdsAn), ...idsLignes(docs.slice(0, 6))]);
+    const prods = produitsDuClient(t.id, docs);
+    chargerCouts([...idsLignes(cmdsAn), ...idsLignes(docs.slice(0, 40)), ...prods.map((x) => x.id)]);
+    const filtre = S.docsFiltre || 'tous'; const docsVus = filtre === 'tous' ? docs : docs.filter((d) => d._k === filtre);
     const ca = rond2(cmdsAn.reduce((s, c) => s + htD(c), 0)); const m = margeDocs(cmdsAn);
     const mois = Array.from({ length: 6 }, (_, i) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 5 + i); return jourISO(d).slice(0, 7); });
     const parMois = mois.map((k) => vendues.filter((c) => String(c.date).slice(0, 7) === k).reduce((s, c) => s + htD(c), 0)); const mx = Math.max(...parMois, 1);
@@ -553,9 +555,13 @@
         <section class="widget w-encours"><div class="tete"><h2>Encours</h2></div><div class="centre">${anneauSVG(plafond ? (encours / plafond) * 100 : 0, euros(encours), '', 150, 'anneau-encours')}<small>${plafond ? `Plafond ${euros(plafond)}` : 'Sans plafond'}</small></div></section>
         <section class="widget w-annee"><div class="tete"><h2>Cette année</h2></div><b class="gros">${euros(ca)}</b><small class="sous">${m && !margeCachee ? `Marge ${euros(m.ht - m.cout)}${m.cout > 0 ? ` · coef. ${(m.ht / m.cout).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}` : ''}` : 'CA HT des commandes'}</small>
           <div class="barres" role="img" aria-label="CA des 6 derniers mois">${parMois.map((x, i) => `<i class="${i === 5 ? 'actuel' : ''}" style="height:${Math.max(10, Math.round((x / mx) * 100))}%" title="${esc(new Date(mois[i] + '-15').toLocaleDateString('fr-FR', { month: 'long' }))} : ${euros(x)}"></i>`).join('')}</div></section>
-        <section class="widget w-docs"><div class="tete"><h2>Devis et commandes</h2>${docs.length > 3 ? `<button type="button" class="lien-tout" data-tous-docs>Tout voir (${docs.length})</button>` : ''}</div>${docs.length ? `<div class="docs">${docs.slice(0, 3).map(carteDoc).join('')}</div>` : '<p class="vide">Aucun document.</p>'}</section>
+        <section class="widget w-docs"><div class="tete"><h2>Devis, commandes et factures</h2><small class="compte-docs">${docs.length}</small></div>
+          <div class="puces puces-docs" role="group" aria-label="Filtrer les documents">${[['tous', 'Tous'], ['propositions', 'Devis'], ['commandes', 'Commandes'], ['factures', 'Factures']].map(([k, n]) => { const nb = k === 'tous' ? docs.length : docs.filter((d) => d._k === k).length; return `<button type="button" data-docs-filtre="${k}" class="${filtre === k ? 'actif' : ''}">${n} · ${nb}</button>`; }).join('')}</div>
+          ${docsVus.length ? `<div class="docs docs-tous">${docsVus.slice(0, 200).map(carteDoc).join('')}</div>${docsVus.length > 200 ? `<p class="vide">200 plus récents affichés sur ${docsVus.length} : le reste sur le PC.</p>` : ''}` : '<p class="vide">Aucun document.</p>'}</section>
         <section class="widget w-contact"><div class="tete"><h2>Contact</h2></div>${nomContact || tel || mail ? `${nomContact ? `<div class="contact"><span class="rond">${esc(nomContact.charAt(0).toUpperCase())}</span><div><b>${esc(nomContact)}</b>${contact.poste ? `<small>${esc(contact.poste)}</small>` : ''}</div></div>` : ''}${tel ? `<a class="lien-contact" href="tel:${esc(String(tel).replace(/\s/g, ''))}">${esc(tel)}</a>` : ''}${mail ? `<a class="lien-contact" href="mailto:${esc(mail)}">${esc(mail)}</a>` : ''}` : '<p class="vide">Aucun contact.</p>'}</section>
         <section class="widget w-conditions"><div class="tete"><h2>Conditions</h2></div><dl class="conditions"><dt>Niveau de prix</dt><dd>${niv} · ${esc(niveaux[niv - 1] || 'Prix ' + niv)}</dd><dt>Remise</dt><dd>${+t.remise ? `${t.remise} %` : 'Aucune'}</dd><dt>Paiement</dt><dd>${esc([t.cond, t.mode].filter(Boolean).join(' · ') || '—')}</dd></dl></section>
+        <section class="widget w-produits"><div class="tete"><h2>Produits du client</h2><button type="button" class="btn-verre petit" data-prix-client="">${ico('plus', 16, 2.4)}Prix client</button></div>
+          ${prods.length ? `<div class="convs">${prods.map(ligneProduitClient).join('')}</div>` : '<p class="vide">Aucun produit acheté ni prix client pour l’instant.</p>'}</section>
       </div>`;
   }
   function feuilleDoc(cle) {
@@ -565,6 +571,97 @@
     ouvrirFeuille(`<h3>${esc(type)} ${esc(d.ref)}</h3><p class="vide" style="padding:0">${esc(t.nom || '')} · ${d.date ? new Date(d.date + 'T12:00:00').toLocaleDateString('fr-FR') : ''}${d.auteur ? ' · ' + esc(d.auteur) : ''} <span class="etat ${e[1]}">${esc(e[0])}</span></p>
       <div class="liste-feuille">${(d.lignes || []).map((l) => `<div class="ligne-devis"><span class="txt"><b>${esc(l.desc || '')}</b><small>${l.qte} × ${euros(l.pu)}${+l.remise ? ` −${pc(l.remise)}` : ''}</small></span><b>${euros(htL(l))}</b></div>`).join('')}</div>
       <div class="totaux"><span>Total HT <b>${euros(htD(d))}</b></span><span class="ttc">TTC <b>${euros(ttcD(d))}</b></span></div><button class="btn-verre" type="button" data-fermer>Fermer</button>`);
+  }
+  // ---------- produits du client + prix clients (25/11/2026, demande : « sur la fiche client, toutes les commandes et devis
+  // effectués, tous les produits reliés au client, pouvoir faire un prix condition client, et voir le prix minimal accepté ») ----------
+  // Produits reliés = lignes de ses devis / commandes / factures (hors annulés) + ses prix clients (crm.prixClients, comme le PC :
+  // { id, tiers, produit, pu, depuis, par }). Prix minimum accepté = le plus haut entre « prix de référence (promo sinon net) −
+  // remise maximale autorisée » (règles de app/js/erp-prix.js) et le « prix de vente minimum HT » de la fiche produit (p.prix_min).
+  // En dessous : impossible sur le téléphone (sur le PC : accord de Farid).
+  const plancherPrix = (p, qte = 1) => { if (!p) return 0; const ref = prixReference(p); return rond2(Math.max(ref ? ref * (1 - remiseAutorisee(p, qte) / 100) : 0, +p.prix_min || 0)); };
+  const prixClientDe = (tiersId, prodId) => ((S.crm && S.crm.prixClients) || []).find((x) => x.tiers === tiersId && x.produit === prodId) || null;
+  function produitsDuClient(tiersId, docs) {
+    const m = new Map(); const ajoute = (id, desc) => { if (!m.has(id)) m.set(id, { id, desc: desc || '', qteCmd: 0, nbDevis: 0, dernier: null }); return m.get(id); };
+    [...docs].reverse().forEach((d) => (d.lignes || []).forEach((l) => { if (!l.produit) return; const x = ajoute(l.produit, l.desc);
+      if (d._k === 'commandes' && d.etat !== 'brouillon') x.qteCmd += +l.qte || 0; if (d._k === 'propositions') x.nbDevis += 1;
+      x.dernier = { pu: rond2((+l.pu || 0) * (1 - (+l.remise || 0) / 100)), ref: d.ref, date: d.date }; if (l.desc) x.desc = l.desc; }));
+    ((S.crm && S.crm.prixClients) || []).filter((x) => x.tiers === tiersId).forEach((x) => { ajoute(x.produit).prixClient = x; });
+    m.forEach((x) => { if (!x.prixClient) x.prixClient = prixClientDe(tiersId, x.id); });
+    return [...m.values()].sort((a, b) => (b.qteCmd - a.qteCmd) || String((b.dernier || {}).date || '').localeCompare(String((a.dernier || {}).date || '')));
+  }
+  function ligneProduitClient(x) {
+    const p = S.produitsCache[x.id]; const nom = (p && (p.libelle || p.ref)) || x.desc || 'Produit';
+    const infos = [p && p.ref, x.qteCmd ? `${x.qteCmd.toLocaleString('fr-FR')} commandé${x.qteCmd > 1 ? 's' : ''}` : '', x.nbDevis ? `${x.nbDevis} devis` : '', x.dernier ? `dernier prix ${euros(x.dernier.pu)}` : ''].filter(Boolean).join(' · ');
+    return `<button type="button" class="conv" data-prix-client="${esc(x.id)}">${p ? imageProduit(p, 44) : `<span class="rond">${ico('stock', 18)}</span>`}<span class="txt"><b>${esc(nom)}</b><small>${esc(infos)}</small></span><span class="droite">${x.prixClient ? `<span class="etat ok">Prix client ${euros(x.prixClient.pu)}</span>` : '<small>Prix client ›</small>'}</span></button>`;
+  }
+  // Feuille « Prix client » : choisir le produit (si besoin), voir prix net / promo / remise max / prix minimum, saisir le prix.
+  async function feuillePrixClient(prodId) {
+    const t = tiersDe(S.client); if (!t) return;
+    if (!prodId) {
+      ouvrirFeuille(`<h3>Prix client · ${esc(t.nom)}</h3><label class="recherche">${ico('cherche', 18)}<input type="search" data-pxc-recherche placeholder="Réf., libellé, code-barres…" aria-label="Chercher un produit"></label>
+        <div class="liste-feuille" data-pxc-res><p class="vide">Tapez au moins 2 caractères.</p></div><button class="btn-verre" type="button" data-fermer>Annuler</button>`);
+      return;
+    }
+    let p = S.produitsCache[prodId];
+    if (!p) { try { const { data } = await sb.from('crm_produits').select('id,data').eq('id', prodId).maybeSingle(); if (data && data.data) { p = data.data; S.produitsCache[p.id] = p; } } catch { /* */ } }
+    if (!p) { toast('Produit introuvable dans le catalogue.'); return; }
+    const pxc = prixClientDe(t.id, p.id); const net = prixNet(p); const min = plancherPrix(p, 1);
+    ouvrirFeuille(`<h3>Prix client · ${esc(t.nom)}</h3>
+      <div class="pxc-produit">${imageProduit(p, 56)}<div><b>${esc(p.libelle || p.ref)}</b><small>${esc([p.ref, p.marque].filter(Boolean).join(' · '))}</small></div></div>
+      <dl class="conditions"><dt>Prix net HT</dt><dd>${euros(net)}</dd>${promoActive(p) ? `<dt>Prix promo HT</dt><dd>${euros(+p.prix_promo)}</dd>` : ''}<dt>Remise max autorisée</dt><dd>${pc(remiseMaxUnite(p))}</dd>${+p.prix_min > 0 ? `<dt>Prix de vente minimum (fiche)</dt><dd>${euros(+p.prix_min)}</dd>` : ''}<dt class="fort">Prix minimum accepté HT</dt><dd class="fort">${euros(min)}</dd>${pxc ? `<dt>Prix client actuel</dt><dd>${euros(pxc.pu)}${pxc.depuis ? ` <small>(depuis le ${new Date(pxc.depuis + 'T12:00:00').toLocaleDateString('fr-FR')})</small>` : ''}</dd>` : ''}</dl>
+      <form class="form-tiers" data-form-pxc="${esc(p.id)}" data-min="${min}">
+        <label class="champ">Prix client HT (€)<input name="pu" type="number" inputmode="decimal" min="${min}" step="0.01" required value="${pxc ? pxc.pu : ''}" placeholder="${esc(String(net).replace('.', ','))}" data-pxc-prix></label>
+        <p class="aide" data-pxc-info>${net ? 'Remise sur le prix net : —' : ''}</p>
+        <p class="erreur-remise" data-pxc-erreur hidden>Prix inférieur au minimum accepté (${euros(min)}) : impossible. Au-delà, l’accord de Farid se fait sur le PC.</p>
+        <button class="btn-metal" type="submit">${pxc ? 'Modifier le prix client' : 'Enregistrer le prix client'}</button>
+        ${pxc ? '<button class="btn-verre danger" type="button" data-pxc-supprimer>Supprimer ce prix client</button>' : ''}
+        <button class="btn-verre" type="button" data-fermer>Annuler</button></form>`);
+    majPrixClient();
+  }
+  function majPrixClient() {
+    const f = app.querySelector('[data-form-pxc]'); if (!f) return; const p = S.produitsCache[f.dataset.formPxc]; const min = +f.dataset.min || 0; const net = prixNet(p);
+    const v = parseFloat(String(f.pu.value).replace(',', '.')); const ok = Number.isFinite(v) && v > 0; const trop = ok && v < min - 0.005;
+    f.querySelector('[data-pxc-erreur]').hidden = !trop; f.pu.classList.toggle('trop', trop); f.querySelector('[type=submit]').disabled = !ok || trop;
+    const i = f.querySelector('[data-pxc-info]'); if (i && net) i.textContent = ok ? `Remise sur le prix net : ${pc(Math.max(0, (1 - v / net) * 100))}${v > net ? ' (au-dessus du prix net)' : ''}` : 'Remise sur le prix net : —';
+  }
+  let minuteurPxc = null;
+  function chercherPrixClient(q) {
+    clearTimeout(minuteurPxc); const z = app.querySelector('[data-pxc-res]'); if (!z) return;
+    if (String(q).trim().length < 2) { z.innerHTML = '<p class="vide">Tapez au moins 2 caractères.</p>'; return; }
+    minuteurPxc = setTimeout(async () => { let l = []; try { l = await chercherProduits(q, 30); } catch (e) { z.innerHTML = `<p class="vide">${esc(e.message)}</p>`; return; }
+      const z2 = app.querySelector('[data-pxc-res]'); if (!z2) return; const t = tiersDe(S.client);
+      z2.innerHTML = l.length ? l.map((p) => { const x = t && prixClientDe(t.id, p.id); return `<button type="button" class="conv" data-pxc-choisir="${esc(p.id)}">${imageProduit(p, 40)}<span class="txt"><b>${esc(p.libelle || p.ref)}</b><small>${esc([p.ref, `net ${euros(prixNet(p))}`, `min ${euros(plancherPrix(p))}`].filter(Boolean).join(' · '))}</small></span><span class="droite">${x ? `<span class="etat ok">${euros(x.pu)}</span>` : '›'}</span></button>`; }).join('') : '<p class="vide">Aucun produit trouvé.</p>'; }, 300);
+  }
+  // Écrit dans crm/crm.json comme le PC (relecture avant envoi, _rev / _parent, événement crm pour que les PC relisent).
+  async function modifierCRM(maj) {
+    for (let essai = 0; essai < 4; essai++) {
+      const { data: blob, error } = await sb.storage.from('donnees-fmd').download('crm/crm.json'); if (error || !blob) throw new Error('CRM illisible (' + ((error && error.message) || 'vide') + ')');
+      const db = JSON.parse(await blob.text()); const rev = db._rev; ['evenements', 'prixClients', 'tiers'].forEach((k) => { if (!Array.isArray(db[k])) db[k] = []; });
+      const r = maj(db); if (db.evenements.length > 600) db.evenements.length = 600;
+      db._parent = rev || null; db._rev = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      const { data: b2 } = await sb.storage.from('donnees-fmd').download('crm/crm.json');
+      if (b2) { try { if (JSON.parse(await b2.text())._rev !== rev) continue; } catch { /* relu au prochain essai */ } }
+      const { error: e2 } = await sb.storage.from('donnees-fmd').upload('crm/crm.json', new Blob([JSON.stringify(db)], { type: 'application/json' }), { upsert: true, contentType: 'application/json', cacheControl: '0' });
+      if (e2) throw new Error(e2.message);
+      try { await sb.from('evenements').insert({ module: 'crm', cle: 'donnees', poste: 'mobile-' + moi() }); } catch { /* les PC relisent toutes les minutes */ }
+      S.crm = db; return r;
+    }
+    throw new Error('le CRM change en ce moment sur un autre poste, réessayez dans quelques secondes');
+  }
+  async function enregistrerPrixClient(tiersId, prodId, pu) {
+    const p = S.produitsCache[prodId]; const min = plancherPrix(p, 1); if (!(pu > 0)) throw new Error('prix invalide');
+    if (pu < min - 0.005) throw new Error(`prix inférieur au minimum accepté (${euros(min)})`);
+    const auteur = nomDe(S.profil); const maintenant = new Date().toISOString();
+    return modifierCRM((db) => {
+      db.prixClients = db.prixClients.filter((x) => !(x.tiers === tiersId && x.produit === prodId));
+      if (pu != null) db.prixClients.push({ id: 'px' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), tiers: tiersId, produit: prodId, pu: rond2(pu), depuis: aujISO(), par: auteur });
+      db.evenements.unshift({ id: 'ev' + Date.now().toString(36), d: maintenant, par: auteur, tiers: tiersId, objet: { type: 'produit', id: prodId }, titre: `Prix client ajouté pour ${(p && p.ref) || 'un produit'} : ${euros(rond2(pu))} HT (téléphone)`, texte: '', type: 'auto' });
+    });
+  }
+  async function supprimerPrixClient(tiersId, prodId) {
+    const p = S.produitsCache[prodId]; const auteur = nomDe(S.profil);
+    return modifierCRM((db) => { db.prixClients = db.prixClients.filter((x) => !(x.tiers === tiersId && x.produit === prodId));
+      db.evenements.unshift({ id: 'ev' + Date.now().toString(36), d: new Date().toISOString(), par: auteur, tiers: tiersId, objet: { type: 'produit', id: prodId }, titre: `Prix client supprimé pour ${(p && p.ref) || 'un produit'} (téléphone)`, texte: '', type: 'auto' }); });
   }
   function feuilleDocsClient() {
     const t = tiersDe(S.client); if (!t) return; const db = S.crm;
@@ -795,7 +892,7 @@
   const prixReference = (p) => { const net = prixNet(p); const promo = promoActive(p) ? +p.prix_promo : 0; return promo && promo < net ? promo : net; };
   // Remise maximale (%) possible sur le prix unitaire de la ligne (prix net, promo ou prix client) : le prix remisé ne descend
   // jamais sous « prix de référence − remise autorisée ».
-  const remiseMaxLigne = (p, pu, qte) => { const ref = prixReference(p); if (!p || !(+pu > 0) || !ref) return 0; const plancher = ref * (1 - remiseAutorisee(p, qte) / 100); return Math.max(0, Math.floor((1 - plancher / pu) * 1000 + 1e-6) / 10); };
+  const remiseMaxLigne = (p, pu, qte) => { if (!p || !(+pu > 0)) return 0; const plancher = plancherPrix(p, qte); if (!plancher) return 0; return Math.max(0, Math.floor((1 - plancher / pu) * 1000 + 1e-6) / 10); };
   // Type de prix figé à la validation (comme D.figerPrix du PC : commissions)
   function typePrix(l) { const p = S.produitsCache[l.produit]; if (!p) return null; const net = prixNet(p); const eff = (+l.pu || 0) * (1 - (+l.remise || 0) / 100); const autorise = remiseAutorisee(p, l.qte);
     if (!net) return { type: 'net', remise: 0, autorise, net };
@@ -863,8 +960,10 @@
         ${x.auto === 'prix client' ? `<div class="ligne-prix"><span>Prix négocié pour ce client</span><b>${euros(x.pu)}</b></div>` : ''}
         <div class="ligne-prix"><span>Quantité</span><div class="stepper" role="group" aria-label="Quantité"><button type="button" data-art-qte="-1" aria-label="Retirer un">−</button><span data-art-q>${x.qte}</span><button type="button" data-art-qte="1" aria-label="Ajouter un">+</button></div></div>
         <label class="champ">Remise (%)<input type="number" inputmode="decimal" min="0" max="${a.max}" step="0.5" data-art-remise value="${esc(x.remise)}" placeholder="0"></label>
+        <label class="champ">ou prix unitaire HT souhaité (€)<input type="number" inputmode="decimal" min="0" step="0.01" data-art-prix value="${a.r > 0 && !a.trop && !a.invalide ? a.pu : ''}" placeholder="${esc(String(x.pu).replace('.', ','))}"></label>
+        <p class="aide-remise" data-art-min>Prix minimum accepté HT : <b>${euros(plancherPrix(p, x.qte))}</b></p>
         <p class="aide-remise" data-art-max>Remise maximale autorisée : <b>${pc(a.max)}</b>${paliers.length ? ` · ${paliers.map((q) => `${pc(q.remise)} dès ${q.qte} unités`).join(', ')}` : ''}</p>
-        <p class="erreur-remise" data-art-erreur ${a.trop || a.invalide ? '' : 'hidden'}>${a.invalide ? 'Remise invalide.' : `Remise supérieure au maximum autorisé (${pc(a.max)}) : impossible.`}</p>
+        <p class="erreur-remise" data-art-erreur ${a.trop || a.invalide ? '' : 'hidden'}>${a.invalide ? 'Remise invalide.' : `Prix sous le minimum accepté (remise maximale ${pc(a.max)}) : impossible.`}</p>
         <div class="totaux"><span>Prix unitaire HT <b data-art-pu>${euros(a.pu)}</b></span><span>Total HT <b data-art-ht>${euros(a.ht)}</b></span><span class="ttc">TTC <b data-art-ttc>${euros(a.ttc)}</b></span></div>
         <button type="button" class="btn-metal plein" data-art-ok ${a.trop || a.invalide ? 'disabled' : ''}>${l ? 'Mettre à jour la ligne' : cmd ? 'Ajouter à la commande' : 'Ajouter au devis'}</button>
         ${l ? '<button type="button" class="btn-verre plein danger" data-art-retirer>Retirer cet article</button>' : ''}</section></div>`;
@@ -873,10 +972,12 @@
   function majArticle() {
     const d = S.devis; if (!d || !d.article) return; const a = saisieArticle(d);
     const q = (s2) => app.querySelector(s2);
-    const e = q('[data-art-erreur]'); if (e) { e.hidden = !(a.trop || a.invalide); e.textContent = a.invalide ? 'Remise invalide.' : `Remise supérieure au maximum autorisé (${pc(a.max)}) : impossible.`; }
+    const e = q('[data-art-erreur]'); if (e) { e.hidden = !(a.trop || a.invalide); e.textContent = a.invalide ? 'Remise invalide.' : `Prix sous le minimum accepté (remise maximale ${pc(a.max)}) : impossible.`; }
     const ch = q('[data-art-remise]'); if (ch) { ch.max = a.max; ch.classList.toggle('trop', a.trop || a.invalide); ch.setAttribute('aria-invalid', String(a.trop || a.invalide)); }
     const b = q('[data-art-ok]'); if (b) b.disabled = a.trop || a.invalide;
     const m = q('[data-art-max] b'); if (m) m.textContent = pc(a.max);
+    const mn = q('[data-art-min] b'); if (mn) mn.textContent = euros(plancherPrix(a.p, a.x.qte));
+    const px = q('[data-art-prix]'); if (px && document.activeElement !== px) px.value = a.r > 0 && !a.trop && !a.invalide ? a.pu : '';
     [['[data-art-pu]', a.pu], ['[data-art-ht]', a.ht], ['[data-art-ttc]', a.ttc]].forEach(([k, v]) => { const el = q(k); if (el) el.textContent = euros(v); });
   }
   async function clicDevis(t) {
@@ -1110,6 +1211,11 @@
     if (t.closest('[data-nouvelle-commande]')) { nouveauDevis(t.closest('[data-nouvelle-commande]').dataset.nouvelleCommande || null, 'cmd'); return; }
     const nt = t.closest('[data-nouveau-tiers]'); if (nt) { feuilleTiers(null, nt.dataset.nouveauTiers, nt.hasAttribute('data-pour-devis')); return; }
     const mt = t.closest('[data-modifier-tiers]'); if (mt) { feuilleTiers(mt.dataset.modifierTiers); return; }
+    const dfl = t.closest('[data-docs-filtre]'); if (dfl) { S.docsFiltre = dfl.dataset.docsFiltre; rendre(true); return; }
+    const pxb = t.closest('[data-prix-client]'); if (pxb) { feuillePrixClient(pxb.dataset.prixClient || null); return; }
+    const pxch = t.closest('[data-pxc-choisir]'); if (pxch) { feuillePrixClient(pxch.dataset.pxcChoisir); return; }
+    if (t.closest('[data-pxc-supprimer]')) { const f = app.querySelector('[data-form-pxc]'); if (!f || !window.confirm('Supprimer ce prix client ? Les prochains devis reprendront le prix net (ou la promo).')) return;
+      try { await supprimerPrixClient(S.client, f.dataset.formPxc); S.feuille = null; rendre(true); toast('Prix client supprimé (aussi sur le PC).'); } catch (er) { toast('Non supprimé : ' + er.message); } return; }
     const fc = t.closest('[data-fiche-client]'); if (fc) { S.client = fc.dataset.ficheClient; S.route = 'client'; rendre(); window.scrollTo(0, 0); return; }
     if (clicStock(t)) return;
     const fo = t.closest('[data-fiche-produit]'); if (fo) { feuilleProduit(fo.dataset.ficheProduit); return; }
@@ -1151,6 +1257,11 @@
 
   app.addEventListener('input', (e) => {
     if (e.target.matches('[data-art-remise]') && S.devis && S.devis.saisie) { S.devis.saisie.remise = e.target.value; majArticle(); return; }
+    // Prix souhaité (25/11/2026) : converti en remise sur le prix de la ligne, même blocage au prix minimum accepté
+    if (e.target.matches('[data-art-prix]') && S.devis && S.devis.saisie) { const s = S.devis.saisie; const v = parseFloat(String(e.target.value).replace(',', '.'));
+      s.remise = Number.isFinite(v) && v > 0 && s.pu > 0 ? String(Math.max(0, Math.round((1 - v / s.pu) * 10000) / 100)) : ''; const r = app.querySelector('[data-art-remise]'); if (r) r.value = s.remise; majArticle(); return; }
+    if (e.target.matches('[data-pxc-prix]')) { majPrixClient(); return; }
+    if (e.target.matches('[data-pxc-recherche]')) { chercherPrixClient(e.target.value); return; }
     const r = e.target.closest('[data-recherche]'); if (!r) return;
     if (r.dataset.recherche === 'clients') { S.rechClients = r.value; rendre(true); }
     if (r.dataset.recherche === 'accueil') rechercheAccueil(r.value);
@@ -1172,6 +1283,13 @@
       const { error } = await sb.from('agenda').insert({ titre: f.titre.value.trim(), lieu: f.lieu.value.trim() || null, debut: debut.toISOString(), fin: fin.toISOString(), journee: false, couleur: 'rg' });
       if (error) { toast('Non enregistré : ' + error.message); return; }
       S.feuille = null; await chargerAgenda(); AG.cle = ''; AG.ref = f.date.value; rendre(); toast('Rendez-vous ajouté (visible aussi sur le PC).'); return;
+    }
+    if (f.matches('[data-form-pxc]')) {
+      const b = f.querySelector('[type=submit]'); if (b.disabled) return; const lib = b.textContent; b.disabled = true; b.textContent = 'Enregistrement…';
+      const pu = parseFloat(String(f.pu.value).replace(',', '.'));
+      try { await enregistrerPrixClient(S.client, f.dataset.formPxc, pu); S.feuille = null; rendre(true); toast(`Prix client enregistré : ${euros(rond2(pu))} HT (aussi sur le PC).`); }
+      catch (er) { b.disabled = false; b.textContent = lib; toast('Non enregistré : ' + er.message); }
+      return;
     }
     if (f.matches('[data-form-tiers]')) {
       const b = f.querySelector('[type=submit]'); if (b.disabled) return; const lib = b.textContent; b.disabled = true; b.textContent = 'Enregistrement…';
