@@ -5,7 +5,7 @@
 // D.A. FMD Signature (maquette V2 : https://claude.ai/artifact/6T9TEbxaE1DHg7L7GVLF56). Détail : cerveau/Mobile.md.
 (function () {
   'use strict';
-  const VERSION = "0.4.143"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
+  const VERSION = "0.4.144"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
   const C = window.FMD_CONFIG || {};
   const sb = window.supabase.createClient(C.supabaseUrl, C.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'fmd-mobile-session' } });
   const app = document.getElementById('app');
@@ -146,7 +146,14 @@
   }
 
   // ================= rendu =================
+  // Champ en cours de saisie (hors message et recherche, déjà gérés) : repéré par son nom ou son attribut data-*, pour le
+  // retrouver après un nouveau dessin de l'écran (événement en direct, retour dans l'appli…) avec sa valeur et le clavier ouvert.
+  const champActif = () => { const a = document.activeElement; return a && app.contains(a) && a.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select') ? a : null; };
+  const cleChamp = (el) => { if (el.name) return `[name="${CSS.escape(el.name)}"]`; const d = [...el.attributes].find((x) => x.name.startsWith('data-')); return d ? `[${d.name}${d.value ? `="${CSS.escape(d.value)}"` : ''}]` : null; };
   function rendre(garderDefilement) {
+    const actif = champActif(); const cleActif = actif && !actif.matches('[data-texte], [data-recherche]') ? cleChamp(actif) : null;
+    const memo = cleActif ? { v: actif.value, deb: actif.selectionStart, fin: actif.selectionEnd } : null;
+    const champsFeuille = S.feuille ? [...app.querySelectorAll('.feuille input:not([type=file]), .feuille textarea, .feuille select')].map((el) => [cleChamp(el), el.type === 'checkbox' ? el.checked : el.value]).filter((x) => x[0]) : [];
     const y = window.scrollY; const fil = app.querySelector('.fil'); const yFil = fil ? fil.scrollTop : null; const enBas = fil ? fil.scrollHeight - fil.scrollTop - fil.clientHeight < 80 : true;
     const saisie = app.querySelector('[data-texte]'); const brouillon = saisie ? saisie.value : ''; const focus = saisie && document.activeElement === saisie;
     const r = S.route;
@@ -157,6 +164,8 @@
     app.innerHTML = `<div class="coquille">${page}</div>${dock()}${fl ? `<button type="button" class="flottant" data-ajouter aria-label="${fl}">${ico('plus', 26, 2.4)}</button>` : ''}${S.feuille ? S.feuille : ''}`;
     if (rech) { const c = app.querySelector(`[data-recherche="${rech.n}"]`); if (c) { c.focus(); try { c.setSelectionRange(rech.pos, rech.pos); } catch { /* */ } } }
     const t = app.querySelector('[data-texte]'); if (t) { t.value = brouillon; if (focus) t.focus(); }
+    if (S.feuille) champsFeuille.forEach(([k, v]) => { const el = app.querySelector('.feuille ' + k); if (el) { if (el.type === 'checkbox') el.checked = v; else el.value = v; } });
+    if (cleActif) { const el = app.querySelector(cleActif); if (el) { el.value = memo.v; el.focus({ preventScroll: true }); try { el.setSelectionRange(memo.deb, memo.fin); } catch { /* champ nombre */ } } }
     const f2 = app.querySelector('.fil'); if (f2) f2.scrollTop = garderDefilement && yFil !== null && !enBas ? yFil : f2.scrollHeight;
     if (garderDefilement) window.scrollTo(0, y);
     chargerImages();
@@ -680,7 +689,10 @@
     }
   });
   window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (S.profil && ROUTES.test(h) && h !== 'devis' && h !== S.route) aller(h); });
-  window.addEventListener('resize', () => { if (S.profil) rendre(true); });
+  // Clavier du téléphone (25/11/2026, bug : « le clavier s'ouvre et se referme aussitôt » sur la remise) : ouvrir le clavier change
+  // la HAUTEUR de la fenêtre ; on ne redessine que si la LARGEUR change (rotation, fenêtre) et jamais pendant une saisie.
+  let largeurVue = window.innerWidth;
+  window.addEventListener('resize', () => { if (!S.profil || window.innerWidth === largeurVue || champActif()) return; largeurVue = window.innerWidth; rendre(true); });
 
   // ================= mises à jour (même version que le logiciel FMD sur PC) =================
   // outils/deployer.ps1 publie le PC ET cette appli avec le même numéro, puis envoie le signal « nouvelle-version » (canal
@@ -688,7 +700,7 @@
   // jamais pendant une saisie. Au retour dans l'appli, version.json est aussi vérifié (signal manqué, téléphone en veille).
   let versionAttendue = null; let surveillance = null;
   async function versionEnLigne() { try { const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' }); return r.ok ? (await r.json()).version : null; } catch { return null; } }
-  const occupe = () => { const t = app.querySelector('[data-texte]'); return !!S.feuille || !!(t && t.value.trim()); };
+  const occupe = () => { const t = app.querySelector('[data-texte]'); return !!S.feuille || !!champActif() || !!(t && t.value.trim()); };
   // Comme sur PC : alerte « Nouvelle mise à jour » (Mettre à jour / Plus tard), installée toute seule après 30 s si on ne
   // touche à rien et qu'aucune saisie n'est en cours. « Plus tard » : rappel 30 min plus tard (ou au retour dans l'appli).
   let alerteMaj = null; let reporteJusqua = 0;
