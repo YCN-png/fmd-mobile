@@ -5,7 +5,7 @@
 // D.A. FMD Signature (maquette V2 : https://claude.ai/artifact/6T9TEbxaE1DHg7L7GVLF56). Détail : cerveau/Mobile.md.
 (function () {
   'use strict';
-  const VERSION = "0.4.142"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
+  const VERSION = "0.4.142.1"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
   const C = window.FMD_CONFIG || {};
   const sb = window.supabase.createClient(C.supabaseUrl, C.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'fmd-mobile-session' } });
   const app = document.getElementById('app');
@@ -52,6 +52,9 @@
     carte: '<path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"></path><circle cx="12" cy="10" r="2.5"></circle>',
     mail: '<rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path>',
     cherche: '<circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path>',
+    alerte: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><path d="M12 9v4M12 17h.01"></path>',
+    camion: '<path d="M1 4h14v12H1zM15 8h4l4 4v4h-8z"></path><circle cx="6" cy="18.5" r="2.5"></circle><circle cx="18" cy="18.5" r="2.5"></circle>',
+    codebarre: '<path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3"></path><path d="M7 8v8M10 8v8M13 8v8M16 8v8"></path>',
   };
   const ico = (n, t = 22, w = 2) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n] || ''}</svg>`;
 
@@ -372,15 +375,128 @@
     clearTimeout(minuteurStock);
     minuteurStock = setTimeout(async () => { try { S.produits = await chercherProduits(S.rechStock, S.rechStock ? 60 : 400); S.produitsCharges = true; } catch (e) { S.produits = []; S.produitsCharges = 'erreur'; toast('Catalogue : ' + e.message); } if (S.route === 'stock' || (S.route === 'devis' && S.devis && S.devis.etape === 2)) rendre(true); }, 300);
   }
+  // ---------- page Stock (25/11/2026) : même écran que la maquette tablette — chiffres, magasin 3D / plan, à réapprovisionner,
+  // derniers mouvements, puis tout le catalogue. Données : crm_produits (stock, pmp, alerte, emplacements3d) + crm.json
+  // (planMagasin, mouvements, achats, livraisonsMagasin). Sur téléphone, les blocs s'empilent dans le même ordre.
+  const ECH_PLAN = 0.015, PX0 = 75, PY0 = 150, PX1 = 1245, PY1 = 1915;
+  const LARG_MAG = (PX1 - PX0) * ECH_PLAN, PROF_MAG = (PY1 - PY0) * ECH_PLAN;
+  const rayonDefaut = (id, x, y, w, h, face, haut = 1.8) => { const ns = face === 'n' || face === 's';
+    return { id, x: (x + w / 2 - PX0) * ECH_PLAN - LARG_MAG / 2, z: (y + h / 2 - PY0) * ECH_PLAN - PROF_MAG / 2, rot: { s: 0, n: 180, e: 90, o: -90 }[face], long: (ns ? w : h) * ECH_PLAN, prof: (ns ? h : w) * ECH_PLAN, haut }; };
+  // plan d'origine du magasin (même que le module Stock du PC) quand aucun plan n'a été enregistré dans le CRM
+  const PLAN_DEFAUT = [['A1', 418, 282, 184, 100, 's'], ['B1', 203, 392, 97, 95, 's'], ['B2', 310, 392, 99, 95, 's'], ['C1', 203, 568, 63, 62, 'n'], ['C2', 275, 568, 133, 62, 'n'],
+    ['C3', 417, 568, 85, 62, 'n'], ['C4', 511, 568, 69, 62, 'n'], ['C5', 589, 568, 75, 62, 'n'], ['C6', 203, 638, 133, 75, 's'], ['C7', 344, 638, 158, 75, 's'], ['C8', 511, 638, 153, 75, 's'],
+    ['D1', 953, 158, 85, 164, 'o', 2.4], ['D2', 953, 330, 85, 163, 'o', 2.4], ['D3', 953, 502, 85, 233, 'o', 2.4], ['D4', 953, 743, 85, 275, 'o', 2.4], ['E1', 822, 843, 42, 112, 'o', 1.6],
+    ['E2', 822, 963, 123, 55, 'n', 1.6], ['F1', 83, 999, 77, 93, 'n'], ['F2', 170, 999, 75, 93, 'n'], ['F3', 255, 999, 93, 93, 'n'], ['F4', 357, 999, 69, 93, 'n'], ['F5', 435, 999, 132, 93, 'n'],
+    ['T1', 400, 813, 198, 124, 's', 0.9], ['T2', 942, 1120, 108, 238, 'o', 0.9], ['K1', 577, 1092, 166, 28, 's', 1.05], ['S1', 1150, 170, 80, 270, 'o', 3], ['S2', 1150, 450, 80, 270, 'o', 3],
+    ['S3', 1150, 730, 80, 280, 'o', 3], ['P1', 1150, 1420, 80, 220, 'o', 3], ['P2', 1150, 1660, 80, 220, 'o', 3], ['R1', 95, 1570, 420, 55, 's', 2.5], ['R2', 95, 1842, 420, 55, 'n', 2.5]].map((a) => rayonDefaut(...a));
+  const planMagasin = () => { const p = S.crm && S.crm.planMagasin; const l = Array.isArray(p) ? p.filter((r) => r && r.id && Number.isFinite(+r.x) && Number.isFinite(+r.z)) : [];
+    return (l.length ? l : PLAN_DEFAUT).map((r) => ({ id: String(r.id), nom: r.nom || '', x: +r.x, z: +r.z, rot: +r.rot || 0, long: Math.max(0.2, +r.long || 2), prof: Math.max(0.2, +r.prof || 0.6), haut: Math.max(0.3, +r.haut || 1.8) })); };
+  const enAlerte = (p) => +p.alerte > 0 && (+p.stock || 0) < +p.alerte;
+  const STK = { stats: null, chargement: false, sel: null, rayon: null, vue: '3d', flux: null };
+  try { if (localStorage.getItem('fmd-stock-vue') === 'plan') STK.vue = 'plan'; } catch { /* vue 3D */ }
+
+  // Chiffres sur TOUT le catalogue (pas seulement les 400 produits affichés) : lecture légère, par paquets de 1000.
+  async function chargerStatsStock(force) {
+    if (STK.chargement || (STK.stats && !force)) return; STK.chargement = true;
+    try {
+      const l = [];
+      for (let i = 0; i < 30000; i += 1000) {
+        const { data, error } = await sb.from('crm_produits').select('id,stock:data->stock,pmp:data->pmp,alerte:data->alerte,ev:data->en_vente,pu:data->fournisseurs->0->pu').eq('supprime', false).range(i, i + 999);
+        if (error) throw new Error(error.message); l.push(...(data || [])); if (!data || data.length < 1000) break;
+      }
+      const prods = l.filter((x) => x.ev !== false);
+      const valeur = prods.reduce((s, x) => s + Math.max(0, +x.stock || 0) * (+x.pmp || +x.pu || 0), 0);
+      const bas = prods.filter((x) => +x.alerte > 0 && (+x.stock || 0) < +x.alerte).sort((a, b) => (+a.stock || 0) / +a.alerte - (+b.stock || 0) / +b.alerte);
+      // fiches complètes des produits à afficher (à réapprovisionner + derniers mouvements)
+      const ids = [...new Set([...bas.slice(0, 12).map((x) => x.id), ...((S.crm && S.crm.mouvements) || []).slice(0, 8).map((m) => m.produit)])].filter((id) => id && !S.produitsCache[id]);
+      if (ids.length) { const { data } = await sb.from('crm_produits').select('id,data').in('id', ids); (data || []).forEach((x) => { if (x.data && x.data.id) S.produitsCache[x.data.id] = x.data; }); }
+      STK.stats = { valeur, refs: prods.length, bas: bas.map((x) => x.id) };
+    } catch (e) { STK.stats = STK.stats || { erreur: e.message }; }
+    STK.chargement = false; if (S.route === 'stock') rendre(true);
+  }
+  const commandesEnRoute = () => { const db = S.crm || {};
+    return (db.achats || []).filter((a) => ['commande', 'ar_recu', 'recue_partiel'].includes(a.etat)).length
+      + (db.livraisonsMagasin || []).filter((l) => l.sens === 'entrante' && l.statut !== 'livree' && l.statut !== 'annulee').length; };
+
+  // Magasin : vue 3D isométrique (rayons en volumes) ou plan vu de dessus ; les rayons du produit choisi s'allument.
+  function dessinMagasin(allumes, choisi) {
+    const plan = planMagasin(); const iso = STK.vue === '3d'; const C = Math.cos(Math.PI / 6), SN = 0.5, H = 1.8;
+    const P = (x, z, y = 0) => (iso ? [(x - z) * C, (x + z) * SN - y * H] : [x, z]);
+    const coins = (r) => { const a = (r.rot * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), L = r.long / 2, W = r.prof / 2;
+      return [[-L, -W], [L, -W], [L, W], [-L, W]].map(([u, v]) => [r.x + u * c - v * s, r.z + u * s + v * c]); };
+    const pts = (l) => l.map((p) => p.map((n) => n.toFixed(2)).join(',')).join(' ');
+    const sol = [[-LARG_MAG / 2, -PROF_MAG / 2], [LARG_MAG / 2, -PROF_MAG / 2], [LARG_MAG / 2, PROF_MAG / 2], [-LARG_MAG / 2, PROF_MAG / 2]];
+    const tous = [...sol.map(([x, z]) => P(x, z)), ...plan.flatMap((r) => coins(r).map(([x, z]) => P(x, z, r.haut)))];
+    const mnX = Math.min(...tous.map((p) => p[0])) - 1.2, mxX = Math.max(...tous.map((p) => p[0])) + 1.2, mnY = Math.min(...tous.map((p) => p[1])) - 2.2, mxY = Math.max(...tous.map((p) => p[1])) + 1;
+    const ordre = iso ? [...plan].sort((a, b) => a.x + a.z - (b.x + b.z)) : plan;
+    let svg = `<polygon points="${pts(sol.map(([x, z]) => P(x, z)))}" class="mg-sol"/>`; let etiquettes = '';
+    for (const r of ordre) {
+      const k = coins(r); const on = allumes.has(r.id); const cl = `mg-r${on ? ' on' : ''}${STK.rayon === r.id ? ' choisi' : ''}`;
+      let g = '';
+      if (iso) {
+        for (let i = 0; i < 4; i++) { const a = k[i], b = k[(i + 1) % 4]; const nx = b[1] - a[1], nz = -(b[0] - a[0]); // normale extérieure (sens horaire)
+          const cx = (a[0] + b[0]) / 2 - r.x, cz = (a[1] + b[1]) / 2 - r.z; const sens = nx * cx + nz * cz > 0 ? 1 : -1;
+          if ((nx + nz) * sens > 0) g += `<polygon points="${pts([P(a[0], a[1]), P(b[0], b[1]), P(b[0], b[1], r.haut), P(a[0], a[1], r.haut)])}" class="mg-cote${Math.abs(nx * sens) > Math.abs(nz * sens) ? ' d' : ''}"/>`; }
+        g += `<polygon points="${pts(k.map(([x, z]) => P(x, z, r.haut)))}" class="mg-dessus"/>`;
+      } else g += `<polygon points="${pts(k.map(([x, z]) => P(x, z)))}" class="mg-dessus"/>`;
+      svg += `<g class="${cl}" data-rayon="${esc(r.id)}"><title>${esc(r.id + (r.nom ? ' — ' + r.nom : ''))}</title>${g}</g>`;
+      const [ex, ey] = P(r.x, r.z, iso ? r.haut : 0);
+      if (on && r.id === choisi) etiquettes += `<g class="mg-bulle" transform="translate(${ex.toFixed(2)} ${(ey - (iso ? 1.3 : 1.1)).toFixed(2)})"><rect x="-1.5" y="-0.62" width="3" height="1.24" rx="0.62"/><text y="0.32">${esc(r.id)}</text></g>`;
+      else if (on || !iso) etiquettes += `<text class="mg-id" x="${ex.toFixed(2)}" y="${(iso ? P(r.x, r.z)[1] + 0.9 : ey + 0.3).toFixed(2)}">${esc(r.id)}</text>`;
+    }
+    return `<svg class="magasin-svg" viewBox="${mnX.toFixed(1)} ${mnY.toFixed(1)} ${(mxX - mnX).toFixed(1)} ${(mxY - mnY).toFixed(1)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Plan du magasin">
+      <defs><linearGradient id="mg-or" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FBE6D6"/><stop offset="1" stop-color="#E2B497"/></linearGradient></defs>${svg}${etiquettes}</svg>`;
+  }
+  const lieuTexte = (e) => `rayon ${e.rayon} · niveau ${e.niveau || 1} · case ${e.case || 1}`;
+  function blocMagasin() {
+    const l = S.produits; let p = STK.sel && S.produitsCache[STK.sel];
+    if (S.rechStock && S.produitsCharges === true && l.length && !(p && l.includes(p))) p = l.find((x) => emplacements(x).length) || l[0];
+    if (!p && !S.rechStock) p = l.find((x) => emplacements(x).length && +x.stock > 0) || null;
+    const empl = p ? (p.emplacements3d || []).filter((e) => e && e.rayon) : [];
+    const allumes = new Set(STK.rayon ? [STK.rayon] : empl.map((e) => e.rayon));
+    const choisi = STK.rayon || (empl[0] && empl[0].rayon);
+    let barre;
+    if (STK.rayon) { const n = l.filter((x) => (x.emplacements3d || []).some((e) => e && e.rayon === STK.rayon)).length; const r = planMagasin().find((x) => x.id === STK.rayon);
+      barre = `<button type="button" class="mg-barre" data-voir-rayon="${esc(STK.rayon)}"><span class="pt"></span><span class="txt"><b>Rayon ${esc(STK.rayon)}</b>${r && r.nom ? ' · ' + esc(r.nom) : ''}</span><span class="nb">${n} produit${n > 1 ? 's' : ''}</span></button>`; }
+    else if (p) barre = `<button type="button" class="mg-barre" data-fiche-produit="${esc(p.id)}"><span class="pt"></span><span class="txt"><b>${esc(p.libelle || p.ref)}</b> · ${empl.length ? esc(lieuTexte(empl[0])) + (empl.length > 1 ? ` (+${empl.length - 1})` : '') : 'pas encore rangé'}</span><span class="nb">${(+p.stock || 0).toLocaleString('fr-FR')} en stock</span></button>`;
+    else barre = `<div class="mg-barre"><span class="txt">${S.rechStock ? (S.produitsCharges === true ? 'Aucun produit trouvé.' : 'Recherche…') : 'Cherchez un produit pour le voir dans le magasin.'}</span></div>`;
+    return `<section class="widget stk-magasin"><div class="tete"><h2>Magasin 3D</h2><div class="bascule" role="group" aria-label="Vue">${[['3d', '3D'], ['plan', 'Plan']].map(([k, t]) => `<button type="button" data-vue-magasin="${k}" class="${STK.vue === k ? 'actif' : ''}">${t}</button>`).join('')}</div></div>
+      <div class="mg-zone">${dessinMagasin(allumes, choisi)}</div>${barre}</section>`;
+  }
+  function blocReappro() {
+    const st = STK.stats; const ids = st && st.bas ? st.bas : S.produits.filter(enAlerte).map((p) => p.id);
+    const l = ids.map((id) => S.produitsCache[id]).filter(Boolean).slice(0, 4);
+    const carte = (p) => { const s = Math.max(0, +p.stock || 0), a = +p.alerte || 1; const pct = Math.min(100, Math.round((s / a) * 100));
+      return `<div class="reappro"><button type="button" class="photo" data-fiche-produit="${esc(p.id)}" aria-label="Voir ${esc(p.libelle || p.ref)}">${imageProduit(p, 58)}</button><div class="txt"><b>${esc(p.libelle || p.ref)}</b><span class="jauge"><i style="width:${Math.max(4, pct)}%" class="${pct < 50 ? 'rouge' : ''}"></i></span><small>${s.toLocaleString('fr-FR')} en stock · seuil ${p.alerte}</small></div><button type="button" class="commander" data-commander="${esc(p.id)}">Commander</button></div>`; };
+    return `<div class="tete"><h2>À réapprovisionner</h2>${ids.length > l.length ? `<button type="button" class="lien-tout" data-tout-reappro>Tout voir (${ids.length})</button>` : ''}</div>
+      ${l.length ? l.map(carte).join('') : `<p class="vide">${!st && STK.chargement ? 'Chargement…' : st && st.erreur ? 'Indisponible : ' + esc(st.erreur) : 'Rien sous le seuil d’alerte.'}</p>`}`;
+  }
+  function blocMouvements() {
+    const l = ((S.crm && S.crm.mouvements) || []).slice(0, 4); if (!l.length) return '';
+    const heure = (d) => { const x = new Date(d); if (isNaN(x)) return ''; return x.toDateString() === new Date().toDateString() ? x.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : x.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }); };
+    return `<div class="mouvements"><b class="titre">Derniers mouvements</b>${l.map((m) => { const p = S.produitsCache[m.produit]; const q = +m.qte || 0;
+      const nom = m.produit_nom || (p && (p.libelle || p.ref)) || 'Produit'; const mo = String(m.motif || ''); const refDoc = (/\b(?:CO|PO|AV|FA|RF|PR)-\d+/.exec(mo) || [])[0];
+      const quoi = /^réception|commande fournisseur/i.test(mo) || m.nature === 'commande' ? 'réception' : refDoc || mo;
+      return `<div class="mv"><span><b class="${q >= 0 ? 'plus' : 'moins'}">${q > 0 ? '+' : q < 0 ? '−' : ''}${Math.abs(q).toLocaleString('fr-FR')}</b> ${esc(nom)}${quoi ? ' · ' + esc(quoi) : ''}</span><small>${esc(String(m.par || '').split(' ')[0])}${m.par ? ' · ' : ''}${heure(m.d)}</small></div>`; }).join('')}</div>`;
+  }
   function pageStock() {
     if (!S.produitsCharges) lancerRechercheStock();
-    const l = S.produits; const alertes = S.rechStock ? [] : l.filter((p) => +p.alerte > 0 && (+p.stock || 0) < +p.alerte);
-    const carte = (p) => `<button type="button" class="ligne-produit" data-produit="${esc(p.id)}">${imageProduit(p)}<span class="txt"><b>${esc(p.libelle || p.ref)}</b><small>${esc(p.ref || '')}${emplacements(p)[0] ? ' · ' + esc(emplacements(p)[0]) : ''}</small></span><span class="droite"><b class="${+p.alerte > 0 && (+p.stock || 0) < +p.alerte ? 'bas' : ''}">${(+p.stock || 0).toLocaleString('fr-FR')}</b><small>en stock</small></span></button>`;
-    return `${entete('Catalogue', 'Stock')}
-      <label class="recherche">${ico('cherche', 18)}<input type="search" data-recherche="stock" value="${esc(S.rechStock)}" placeholder="Où est ce produit ? Réf., nom, code-barres" aria-label="Chercher un produit"></label>
-      ${alertes.length ? `<div class="groupe retard">À réapprovisionner ${alertes.length}</div><section class="widget">${alertes.slice(0, 8).map(carte).join('')}</section>` : ''}
-      <div class="groupe">${S.rechStock ? 'Résultats' : 'Produits'} ${S.produitsCharges === true ? l.length : ''}</div>
+    chargerStatsStock();
+    const l = S.produits; const st = STK.stats || {};
+    const carte = (p) => `<button type="button" class="ligne-produit${STK.sel === p.id ? ' choisie' : ''}" data-produit="${esc(p.id)}">${imageProduit(p)}<span class="txt"><b>${esc(p.libelle || p.ref)}</b><small>${esc(p.ref || '')}${emplacements(p)[0] ? ' · ' + esc(emplacements(p)[0]) : ''}</small></span><span class="droite"><b class="${enAlerte(p) ? 'bas' : ''}">${(+p.stock || 0).toLocaleString('fr-FR')}</b><small>en stock</small></span></button>`;
+    const nb = (v) => (STK.stats && !st.erreur ? String(v) : '…');
+    const kpis = `<div class="stk-kpis">
+        <section class="widget chaud kpi valeur"><small class="etq">Valeur du stock</small><b class="gros">${STK.stats && !st.erreur ? euros(st.valeur) : '…'}</b><small>au prix de revient · ${nb((st.refs || 0).toLocaleString('fr-FR'))} références</small></section>
+        <section class="widget kpi"><span class="ic alerte">${ico('alerte', 20)}</span><div><b class="gros">${nb((st.bas || []).length)}</b><small>produits sous le seuil d’alerte</small></div></section>
+        <section class="widget kpi"><span class="ic route">${ico('camion', 20)}</span><div><b class="gros">${S.crm ? commandesEnRoute() : '—'}</b><small>commandes fournisseurs en route</small></div></section></div>`;
+    const liste = `<div class="groupe">${S.rechStock ? 'Résultats' : 'Produits'} ${S.produitsCharges === true ? l.length : ''}</div>
       <section class="widget">${S.produitsCharges === true ? (l.length ? l.slice(0, 60).map(carte).join('') : '<p class="vide">Aucun produit trouvé.</p>') : S.produitsCharges === 'erreur' ? '<p class="vide">Catalogue indisponible.</p>' : '<p class="vide">Chargement du catalogue…</p>'}</section>`;
+    return `<header class="entete stk-entete"><div class="titre-stk"><button type="button" class="retour" data-aller="accueil" aria-label="Retour">${ico('retour', 20, 2.2)}</button><h1>Stock</h1></div>
+        <div class="stk-cherche"><label class="recherche">${ico('cherche', 18)}<input type="search" data-recherche="stock" value="${esc(S.rechStock)}" placeholder="Où est ce produit ? (réf., nom, code-barres)" aria-label="Chercher un produit"></label>
+        <button type="button" class="scan" data-scanner aria-label="Scanner un code-barres">${ico('codebarre', 22)}</button></div></header>
+      ${S.rechStock ? '' : kpis}
+      <div class="stk-grille">${blocMagasin()}${S.rechStock ? '' : `<section class="widget stk-reappro">${blocReappro()}${blocMouvements()}</section>`}</div>
+      ${liste}`;
   }
   function feuilleProduit(id) {
     const p = S.produitsCache[id]; if (!p) return;
@@ -388,7 +504,51 @@
     ouvrirFeuille(`<div style="display:flex;gap:14px;align-items:center">${imageProduit(p, 84)}<div><h3>${esc(p.libelle || p.ref)}</h3><p class="vide" style="padding:0">${esc([p.ref, p.marque, p.code_barres].filter(Boolean).join(' · '))}</p></div></div>
       <div class="pastilles"><span class="pastille">${(+p.stock || 0).toLocaleString('fr-FR')} en stock</span>${+p.alerte ? `<span class="pastille neutre">seuil ${p.alerte}</span>` : ''}<span class="pastille neutre">${euros(prixNet(p))} HT</span></div>
       <div><b style="font-size:14px">Emplacement</b><p class="vide" style="padding:4px 0">${empl.length ? empl.map(esc).join('<br>') : 'Pas encore rangé dans le magasin 3D.'}</p></div>
+      ${enAlerte(p) ? `<button class="btn-metal" type="button" data-commander="${esc(p.id)}">Commander</button>` : ''}<button class="btn-verre" type="button" data-fermer>Fermer</button>`);
+  }
+  // « Commander » : fournisseur principal de la fiche (Tiers du CRM), quantité conseillée, appel ou e-mail prérempli.
+  // La commande fournisseur (PO) elle-même reste créée sur le PC.
+  function feuilleCommander(id) {
+    const p = S.produitsCache[id]; if (!p) return;
+    const f = (p.fournisseurs || [])[0] || {}; const t = tiersDe(f.tiers) || ((S.crm && S.crm.tiers) || []).find((x) => x.fournisseur && p.marque && normaliser(x.nom) === normaliser(p.marque)) || null;
+    const qte = Math.max(+f.qte_min || 1, Math.ceil((+p.alerte || 0) * 2 - Math.max(0, +p.stock || 0)));
+    const corps = `Bonjour,\n\nMerci de nous livrer :\n- ${qte} × ${p.libelle || ''} (réf. ${f.ref || p.ref || ''})\n\nCordialement,\n${nomDe(S.profil)}\nFMD`;
+    const tel = t && (t.tel || t.portable);
+    ouvrirFeuille(`<h3>Commander</h3><p class="vide" style="padding:0">${esc(p.libelle || p.ref)} · ${(+p.stock || 0).toLocaleString('fr-FR')} en stock · seuil ${esc(p.alerte || 0)}</p>
+      <div class="pastilles"><span class="pastille">Quantité conseillée : ${qte}</span>${+f.pu ? `<span class="pastille neutre">${euros(f.pu)} HT l’unité</span>` : ''}${+f.delai ? `<span class="pastille neutre">délai ${f.delai} j</span>` : ''}</div>
+      <p class="vide" style="padding:0">Fournisseur : <b>${t ? esc(t.nom) : 'non renseigné sur la fiche'}</b></p>
+      ${tel ? `<a class="btn-verre" href="tel:${esc(String(tel).replace(/\s/g, ''))}">${ico('tel', 18)}Appeler ${esc(t.nom)}</a>` : ''}
+      ${t && t.email ? `<a class="btn-verre" href="mailto:${esc(t.email)}?subject=${encodeURIComponent('Commande FMD — ' + (p.ref || p.libelle || ''))}&body=${encodeURIComponent(corps)}">${ico('mail', 18)}Envoyer la commande par e-mail</a>` : ''}
+      <p class="vide" style="padding:0;font-size:12px">Le bon de commande fournisseur se crée dans le CRM sur le PC.</p>
       <button class="btn-verre" type="button" data-fermer>Fermer</button>`);
+  }
+  function feuilleListe(titre, ids) {
+    const l = ids.map((id) => S.produitsCache[id]).filter(Boolean);
+    ouvrirFeuille(`<h3>${esc(titre)}</h3><div class="liste-feuille">${l.length ? l.map((p) => `<button type="button" class="ligne-produit" data-fiche-produit="${esc(p.id)}">${imageProduit(p, 44)}<span class="txt"><b>${esc(p.libelle || p.ref)}</b><small>${esc(p.ref || '')}</small></span><span class="droite"><b class="${enAlerte(p) ? 'bas' : ''}">${(+p.stock || 0).toLocaleString('fr-FR')}</b><small>${+p.alerte ? 'seuil ' + p.alerte : 'en stock'}</small></span></button>`).join('') : '<p class="vide">Aucun produit.</p>'}</div><button class="btn-verre" type="button" data-fermer>Fermer</button>`);
+  }
+  // Scanner : lecteur de code-barres du navigateur (Chrome Android…) ; sinon le champ de recherche (clavier du téléphone).
+  function arreterScan() { if (STK.flux) { STK.flux.getTracks().forEach((t) => t.stop()); STK.flux = null; } }
+  async function ouvrirScanner() {
+    const champ = () => app.querySelector('[data-recherche="stock"]');
+    if (!('BarcodeDetector' in window) || !navigator.mediaDevices) { const c = champ(); if (c) { c.focus(); c.select(); } toast('Lecteur de code-barres non disponible sur ce navigateur : tapez ou collez le code.'); return; }
+    let det; try { det = new window.BarcodeDetector(); } catch { toast('Lecteur de code-barres indisponible.'); return; }
+    try { STK.flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); } catch { toast('Caméra refusée : autorisez-la dans les réglages du navigateur.'); return; }
+    ouvrirFeuille('<h3>Scanner un code-barres</h3><video class="video-scan" playsinline muted autoplay></video><button class="btn-verre" type="button" data-fermer>Annuler</button>');
+    const v = app.querySelector('.video-scan'); if (!v) { arreterScan(); return; } v.srcObject = STK.flux;
+    const boucle = async () => { if (!STK.flux) return; const v2 = app.querySelector('.video-scan'); if (!v2) { arreterScan(); return; }
+      try { const r = await det.detect(v2); if (r && r[0] && r[0].rawValue) { arreterScan(); S.rechStock = r[0].rawValue; STK.sel = null; STK.rayon = null; S.feuille = null; lancerRechercheStock(); rendre(true); return; } } catch { /* image suivante */ }
+      setTimeout(boucle, 250); };
+    v.onloadedmetadata = () => { v.play().catch(() => {}); boucle(); };
+  }
+  function clicStock(t) {
+    if (S.route !== 'stock') return false;
+    const vm = t.closest('[data-vue-magasin]'); if (vm) { STK.vue = vm.dataset.vueMagasin; try { localStorage.setItem('fmd-stock-vue', STK.vue); } catch { /* */ } rendre(true); return true; }
+    const ry = t.closest('[data-rayon]'); if (ry) { STK.rayon = STK.rayon === ry.dataset.rayon ? null : ry.dataset.rayon; rendre(true); return true; }
+    const vr = t.closest('[data-voir-rayon]'); if (vr) { const id = vr.dataset.voirRayon; feuilleListe('Rayon ' + id, S.produits.filter((p) => (p.emplacements3d || []).some((e) => e && e.rayon === id)).map((p) => p.id)); return true; }
+    const fp = t.closest('[data-produit]'); if (fp) { STK.sel = fp.dataset.produit; STK.rayon = null; rendre(true); const m = app.querySelector('.stk-magasin'); if (m) m.scrollIntoView({ behavior: 'smooth', block: 'start' }); return true; }
+    if (t.closest('[data-tout-reappro]')) { feuilleListe('À réapprovisionner', (STK.stats && STK.stats.bas) || []); return true; }
+    if (t.closest('[data-scanner]')) { ouvrirScanner(); return true; }
+    return false;
   }
 
   // ---------- devis en 3 étapes (même logique que le CRM du PC : js/erp-commerce.js, erp-donnees.js, erp-prix.js) ----------
@@ -487,7 +647,7 @@
 
   // ---------- feuilles (formulaires et menus) ----------
   function ouvrirFeuille(html) { S.feuille = `<div class="feuille" data-fermer-feuille><div class="panneau" role="dialog" aria-modal="true">${html}</div></div>`; rendre(true); const i = app.querySelector('.panneau input'); if (i) i.focus(); }
-  function fermerFeuille() { S.feuille = null; rendre(true); }
+  function fermerFeuille() { arreterScan(); S.feuille = null; rendre(true); }
   function feuilleRdv() {
     const d = S.route === 'agenda' ? S.jour : aujISO();
     ouvrirFeuille(`<h3>Nouveau rendez-vous</h3><form data-form-rdv style="display:flex;flex-direction:column;gap:10px">
@@ -522,11 +682,13 @@
     if (t.closest('[data-marge]')) { margeCachee = !margeCachee; try { localStorage.setItem(CLE_MARGE, margeCachee ? '1' : '0'); } catch { /* préférence non gardée */ } if (S.feuille) feuilleCompte(); else rendre(true); toast(margeCachee ? 'Marge cachée.' : 'Marge affichée.'); return; }
     if (t.closest('[data-deconnexion]')) { S.feuille = null; if (S.canal) sb.removeChannel(S.canal); await sb.auth.signOut(); return; }
     if (t.closest('[data-chercher-maj]')) { const b = t.closest('[data-chercher-maj]'); b.disabled = true; b.textContent = 'Recherche…'; const r = await rechargerSiNouvelle(null, true); S.feuille = null; rendre(true); if (!r) toast(`FMD est à jour (version ${VERSION}).`); return; }
-    if (t.closest('[data-actualiser]')) { S.feuille = null; await Promise.all([chargerProfils(), chargerMessages(), chargerTaches(), chargerAgenda(), chargerCRM()]); rendre(); toast('À jour avec le serveur.'); return; }
+    if (t.closest('[data-actualiser]')) { S.feuille = null; await Promise.all([chargerProfils(), chargerMessages(), chargerTaches(), chargerAgenda(), chargerCRM()]); STK.stats = null; S.produitsCharges = false; rendre(); toast('À jour avec le serveur.'); return; }
     if (t.closest('[data-ajouter]')) { if (S.route === 'agenda') feuilleRdv(); else if (S.route === 'clients' || S.route === 'client') nouveauDevis(S.route === 'client' ? S.client : null); else feuilleTache(); return; }
     if (t.closest('[data-nouveau-devis]')) { nouveauDevis(t.closest('[data-nouveau-devis]').dataset.nouveauDevis || null); return; }
     const fc = t.closest('[data-fiche-client]'); if (fc) { S.client = fc.dataset.ficheClient; S.route = 'client'; rendre(); window.scrollTo(0, 0); return; }
-    const fp = t.closest('[data-produit]'); if (fp && S.route === 'stock') { feuilleProduit(fp.dataset.produit); return; }
+    if (clicStock(t)) return;
+    const fo = t.closest('[data-fiche-produit]'); if (fo) { feuilleProduit(fo.dataset.ficheProduit); return; }
+    const cm = t.closest('[data-commander]'); if (cm) { feuilleCommander(cm.dataset.commander); return; }
     if (await clicDevis(t)) return;
     if (t.closest('[data-nouveau-rdv]')) { feuilleRdv(); return; }
     if (t.closest('[data-nouvelle-tache]')) { feuilleTache(); return; }
@@ -565,7 +727,7 @@
   app.addEventListener('input', (e) => {
     const r = e.target.closest('[data-recherche]'); if (!r) return;
     if (r.dataset.recherche === 'clients') { S.rechClients = r.value; rendre(true); }
-    if (r.dataset.recherche === 'stock') { S.rechStock = r.value; lancerRechercheStock(); }
+    if (r.dataset.recherche === 'stock') { S.rechStock = r.value; STK.sel = null; STK.rayon = null; lancerRechercheStock(); }
   });
   app.addEventListener('change', (e) => { if (e.target.matches('[data-fichier], [data-fichier-photo]')) { const f = [...e.target.files]; e.target.value = ''; envoyerFichiers(f); } });
   app.addEventListener('keydown', (e) => { if (e.target.matches('[data-texte]') && e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); e.target.form.requestSubmit(); } });
