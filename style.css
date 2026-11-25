@@ -148,7 +148,20 @@ a { color: var(--rg-clair); }
 .bulle.moi .plus-bulle { left: -32px; top: 50%; transform: translateY(-50%); }
 .bulle.lui .plus-bulle { right: -32px; top: 50%; transform: translateY(-50%); }
 .feuille { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.55); display: flex; align-items: flex-end; justify-content: center; }
-.feuille .panneau { width: 100%; max-width: 520px; padding: 18px 16px calc(18px + var(--bas)); border-radius: 26px 26px 0 0; background: #1a1411; border: 1px solid var(--ligne); display: flex; flex-direction: column; gap: 10px; }
+.feuille .panneau { width: 100%; max-width: 520px; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; padding: 18px 16px calc(18px + var(--bas)); border-radius: 26px 26px 0 0; background: #1a1411; border: 1px solid var(--ligne); display: flex; flex-direction: column; gap: 10px; }
+/* Nouveau client / prospect (25/11/2026) */
+.actions-tiers { display: flex; gap: 10px; margin: 0 0 12px; }
+.actions-tiers .btn-verre { flex: 1; min-width: 0; justify-content: center; gap: 6px; padding: 0 10px; font-size: 13px; white-space: nowrap; }
+.form-tiers { display: flex; flex-direction: column; gap: 10px; }
+.form-tiers h4 { margin: 8px 0 0; font: 700 13px var(--titre); letter-spacing: .04em; text-transform: uppercase; color: var(--rg, #C9987D); }
+.form-tiers .deux { display: flex; gap: 10px; }
+.form-tiers .deux > .champ { flex: 1; min-width: 0; }
+.form-tiers .nature { display: flex; gap: 8px; }
+.form-tiers .nature label { flex: 1; }
+.form-tiers .nature input { position: absolute; opacity: 0; pointer-events: none; }
+.form-tiers .nature span { display: flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 999px; border: 1px solid var(--ligne-forte); font-weight: 600; font-size: 14px; }
+.form-tiers .nature input:checked + span { background: linear-gradient(135deg, #F7DAC5, #6F4A3C); color: #080808; border-color: transparent; }
+.form-tiers .aide { margin: -4px 0 0; font-size: 12px; color: var(--texte-3); }
 .feuille .panneau h3 { margin: 0 0 4px; font: 700 18px var(--titre); }
 .feuille .panneau button.danger { color: #F3A88F; }
 

@@ -5,7 +5,7 @@
 // D.A. FMD Signature (maquette V2 : https://claude.ai/artifact/6T9TEbxaE1DHg7L7GVLF56). Détail : cerveau/Mobile.md.
 (function () {
   'use strict';
-  const VERSION = "0.4.144.2"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
+  const VERSION = "0.4.144.3"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
   const C = window.FMD_CONFIG || {};
   const sb = window.supabase.createClient(C.supabaseUrl, C.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'fmd-mobile-session' } });
   const app = document.getElementById('app');
@@ -57,6 +57,7 @@
     alerte: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><path d="M12 9v4M12 17h.01"></path>',
     camion: '<path d="M1 4h14v12H1zM15 8h4l4 4v4h-8z"></path><circle cx="6" cy="18.5" r="2.5"></circle><circle cx="18" cy="18.5" r="2.5"></circle>',
     codebarre: '<path d="M3 7V4h3M18 4h3v3M21 17v3h-3M6 20H3v-3"></path><path d="M7 8v8M10 8v8M13 8v8M16 8v8"></path>',
+    crayon: '<path d="M4 20h4L19 9l-4-4L4 16z"></path><path d="M13.5 6.5l4 4"></path>',
   };
   const ico = (n, t = 22, w = 2) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n] || ''}</svg>`;
 
@@ -154,11 +155,11 @@
   // Champ en cours de saisie (hors message et recherche, déjà gérés) : repéré par son nom ou son attribut data-*, pour le
   // retrouver après un nouveau dessin de l'écran (événement en direct, retour dans l'appli…) avec sa valeur et le clavier ouvert.
   const champActif = () => { const a = document.activeElement; return a && app.contains(a) && a.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select') ? a : null; };
-  const cleChamp = (el) => { if (el.name) return `[name="${CSS.escape(el.name)}"]`; const d = [...el.attributes].find((x) => x.name.startsWith('data-')); return d ? `[${d.name}${d.value ? `="${CSS.escape(d.value)}"` : ''}]` : null; };
+  const cleChamp = (el) => { if (el.name && el.type === 'radio') return `[name="${CSS.escape(el.name)}"][value="${CSS.escape(el.value)}"]`; if (el.name) return `[name="${CSS.escape(el.name)}"]`; const d = [...el.attributes].find((x) => x.name.startsWith('data-')); return d ? `[${d.name}${d.value ? `="${CSS.escape(d.value)}"` : ''}]` : null; };
   function rendre(garderDefilement) {
     const actif = champActif(); const cleActif = actif && !actif.matches('[data-texte], [data-recherche]') ? cleChamp(actif) : null;
     const memo = cleActif ? { v: actif.value, deb: actif.selectionStart, fin: actif.selectionEnd } : null;
-    const champsFeuille = S.feuille ? [...app.querySelectorAll('.feuille input:not([type=file]), .feuille textarea, .feuille select')].map((el) => [cleChamp(el), el.type === 'checkbox' ? el.checked : el.value]).filter((x) => x[0]) : [];
+    const champsFeuille = S.feuille ? [...app.querySelectorAll('.feuille input:not([type=file]), .feuille textarea, .feuille select')].map((el) => [cleChamp(el), el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.value]).filter((x) => x[0]) : [];
     const y = window.scrollY; const fil = app.querySelector('.fil'); const yFil = fil ? fil.scrollTop : null; const enBas = fil ? fil.scrollHeight - fil.scrollTop - fil.clientHeight < 80 : true;
     const saisie = app.querySelector('[data-texte]'); const brouillon = saisie ? saisie.value : ''; const focus = saisie && document.activeElement === saisie;
     const r = S.route;
@@ -169,7 +170,7 @@
     app.innerHTML = `<div class="coquille">${page}</div>${dock()}${fl ? `<button type="button" class="flottant" data-ajouter aria-label="${fl}">${ico('plus', 26, 2.4)}</button>` : ''}${S.feuille ? S.feuille : ''}`;
     if (rech) { const c = app.querySelector(`[data-recherche="${rech.n}"]`); if (c) { c.focus(); try { c.setSelectionRange(rech.pos, rech.pos); } catch { /* */ } } }
     const t = app.querySelector('[data-texte]'); if (t) { t.value = brouillon; if (focus) t.focus(); }
-    if (S.feuille) champsFeuille.forEach(([k, v]) => { const el = app.querySelector('.feuille ' + k); if (el) { if (el.type === 'checkbox') el.checked = v; else el.value = v; } });
+    if (S.feuille) champsFeuille.forEach(([k, v]) => { const el = app.querySelector('.feuille ' + k); if (el) { if (el.type === 'checkbox' || el.type === 'radio') el.checked = v; else el.value = v; } });
     if (cleActif) { const el = app.querySelector(cleActif); if (el) { el.value = memo.v; el.focus({ preventScroll: true }); try { el.setSelectionRange(memo.deb, memo.fin); } catch { /* champ nombre */ } } }
     const f2 = app.querySelector('.fil'); if (f2) f2.scrollTop = garderDefilement && yFil !== null && !enBas ? yFil : f2.scrollHeight;
     if (garderDefilement) window.scrollTo(0, y);
@@ -520,6 +521,7 @@
     const l = ((S.crm && S.crm.tiers) || []).filter((t) => (t.client || t.prospect) && (!q || normaliser([t.nom, t.alt, t.ville, t.code_client, t.tel].join(' ')).includes(q)))
       .sort((a, b) => String(a.nom).localeCompare(String(b.nom), 'fr')).slice(0, 80);
     return `${entete('CRM', 'Clients')}
+      ${boutonsNouveauTiers()}
       <label class="recherche">${ico('cherche', 18)}<input type="search" data-recherche="clients" value="${esc(S.rechClients)}" placeholder="Nom, ville, téléphone…" aria-label="Rechercher un client"></label>
       <section class="widget">${!S.crm ? '<p class="vide">CRM indisponible (pas de connexion au serveur).</p>' : l.length ? `<div class="convs">${l.map((t) => `<button type="button" class="conv" data-fiche-client="${esc(t.id)}">${avatarTiers(t)}<span class="txt"><b>${esc(t.nom)}</b><small>${esc([t.prospect && !t.client ? 'Prospect' : 'Client', t.ville, t.tel].filter(Boolean).join(' · '))}</small></span><span class="droite">›</span></button>`).join('')}</div>` : '<p class="vide">Aucun client trouvé.</p>'}</section>`;
   }
@@ -546,7 +548,7 @@
     const carteDoc = (d) => { const e = ETAT_DOC_TXT(d); const l = d.lignes || []; const pieces = l.reduce((s, x) => s + (+x.qte || 0), 0);
       return `<button type="button" class="carte-doc" data-voir-doc="${esc(d._k)}:${esc(d.id)}">${photoDoc(d)}<span class="txt"><b>${esc(d.ref)}</b><small>${esc((l[0] || {}).desc || d._t)} · ${l.length} article${l.length > 1 ? 's' : ''} · ${pieces.toLocaleString('fr-FR')} pièce${pieces > 1 ? 's' : ''}</small><small class="disc">${d.date ? new Date(d.date + 'T12:00:00').toLocaleDateString('fr-FR') : ''}${d.auteur ? ' · ' + esc(String(d.auteur).split(' ')[0]) : ''}</small></span><span class="droite"><span class="etat ${e[1]}">${esc(e[0])}</span><b>${euros(htD(d))}</b></span></button>`; };
     return `<header class="entete fiche-entete"><div class="gauche"><button type="button" class="retour" data-aller="clients" aria-label="Retour">${ico('retour', 20, 2.2)}</button><span class="avatar-carre">${avatarTiers(t, 76)}</span><div class="nom"><h1>${esc(t.nom)}</h1><div class="sous"><span class="pastille neutre">${t.prospect && !t.client ? 'Prospect' : 'Client'}</span>${esc([[t.cp, t.ville].filter(Boolean).join(' '), t.code_client].filter(Boolean).join(' · '))}</div></div></div>
-        <div class="boutons">${tel ? `<a class="btn-verre" href="tel:${esc(String(tel).replace(/\s/g, ''))}">${ico('tel', 18)}Appeler</a>` : ''}${adresse ? `<a class="btn-verre" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresse)}" target="_blank" rel="noopener">${ico('carte', 18)}Itinéraire</a>` : ''}<button type="button" class="btn-verre" data-nouvelle-commande="${esc(t.id)}">${ico('commande', 18)}Commande</button><button type="button" class="btn-metal" data-nouveau-devis="${esc(t.id)}">${ico('plus', 18, 2.4)}Nouveau devis</button></div></header>
+        <div class="boutons">${tel ? `<a class="btn-verre" href="tel:${esc(String(tel).replace(/\s/g, ''))}">${ico('tel', 18)}Appeler</a>` : ''}${adresse ? `<a class="btn-verre" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresse)}" target="_blank" rel="noopener">${ico('carte', 18)}Itinéraire</a>` : ''}<button type="button" class="btn-verre" data-modifier-tiers="${esc(t.id)}">${ico('crayon', 18)}Modifier</button><button type="button" class="btn-verre" data-nouvelle-commande="${esc(t.id)}">${ico('commande', 18)}Commande</button><button type="button" class="btn-metal" data-nouveau-devis="${esc(t.id)}">${ico('plus', 18, 2.4)}Nouveau devis</button></div></header>
       <div class="grille fiche-client">
         <section class="widget w-encours"><div class="tete"><h2>Encours</h2></div><div class="centre">${anneauSVG(plafond ? (encours / plafond) * 100 : 0, euros(encours), '', 150, 'anneau-encours')}<small>${plafond ? `Plafond ${euros(plafond)}` : 'Sans plafond'}</small></div></section>
         <section class="widget w-annee"><div class="tete"><h2>Cette année</h2></div><b class="gros">${euros(ca)}</b><small class="sous">${m && !margeCachee ? `Marge ${euros(m.ht - m.cout)}${m.cout > 0 ? ` · coef. ${(m.ht / m.cout).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}` : ''}` : 'CA HT des commandes'}</small>
@@ -814,7 +816,7 @@
     if (d.etape === 1) {
       const q = normaliser(S.rechClients);
       const l = ((S.crm && S.crm.tiers) || []).filter((x) => (x.client || x.prospect) && (!q || normaliser([x.nom, x.ville, x.code_client].join(' ')).includes(q))).sort((a, b) => String(a.nom).localeCompare(String(b.nom), 'fr')).slice(0, 60);
-      return `${tete}<label class="recherche">${ico('cherche', 18)}<input type="search" data-recherche="clients" value="${esc(S.rechClients)}" placeholder="Choisir le client…" aria-label="Choisir le client"></label>
+      return `${tete}<label class="recherche">${ico('cherche', 18)}<input type="search" data-recherche="clients" value="${esc(S.rechClients)}" placeholder="Choisir le client…" aria-label="Choisir le client"></label>${boutonsNouveauTiers(true)}
         <section class="widget"><div class="convs">${l.map((x) => `<button type="button" class="conv" data-devis-client="${esc(x.id)}">${avatarTiers(x)}<span class="txt"><b>${esc(x.nom)}</b><small>${esc([x.ville, x.remise ? `remise ${x.remise} %` : 'prix net'].filter(Boolean).join(' · '))}</small></span><span class="droite">›</span></button>`).join('') || '<p class="vide">Aucun client.</p>'}</div></section>`;
     }
     const controleur = S.profil && S.profil.controle_par && profil(S.profil.controle_par);
@@ -984,6 +986,102 @@
     ouvrirFeuille(`<h3>${esc(nomDe(S.profil))}</h3><p class="vide" style="padding:0">${esc(S.user.email || '')}</p><p class="vide" style="padding:0">Données synchronisées avec le logiciel FMD sur PC.</p><p class="vide" style="padding:0">Version FMD ${esc(VERSION)}</p><button class="btn-verre" type="button" data-marge>${margeCachee ? 'Afficher la marge' : 'Cacher la marge'}</button><button class="btn-verre" type="button" data-chercher-maj>Rechercher une mise à jour</button>${blocInstaller()}
       <button class="btn-verre" type="button" data-actualiser>Tout relire sur le serveur</button><button class="btn-verre danger" type="button" data-deconnexion>Se déconnecter</button><button class="btn-verre" type="button" data-fermer>Fermer</button>`);
   }
+  // ---------- nouveau client / prospect + modifier (25/11/2026, demande : « sur la version web je ne peux pas créer un
+  // nouveau client ou un nouveau prospect, il me faudrait les mêmes fonctions que sur le logiciel PC ») ----------
+  // Mêmes champs et mêmes règles que le PC (app/js/erp-tiers.js, formTiers) : code client CUaamm-nnnnn (compteurs.cu,
+  // comme D.prochaineRef), compte 411 + 5 lettres du nom, événement « Tiers … créé / modifié », carte « À contrôler » au
+  // contrôleur (comme FMDMessagerie.signalerCreation). Écrit dans crm/crm.json comme un devis (relecture avant envoi).
+  // Listes recopiées d'app/js/erp-donnees.js (D.TYPES_TIERS…) : à garder identiques.
+  const TL = {
+    types: ['TPE', 'PME/PMI', 'Grand compte', 'Particulier', 'Administration'],
+    statuts: [['jamais', 'Jamais contacté'], ['a_contacter', 'À contacter'], ['en_cours', 'Contact en cours'], ['fait', 'Contact réalisé'], ['ne_pas', 'Ne pas contacter']],
+    potentiels: ['—', 'Faible', 'Moyen', 'Fort'],
+    conditions: ['À réception', '30 jours', '30 jours fin de mois', '45 jours fin de mois', '60 jours'],
+    modes: ['Virement', 'Chèque', 'Carte bancaire', 'Prélèvement', 'Espèces'],
+    commerciaux: ['Farid MEDEGUEB', 'Benoît CRASNIER'],
+    effectifs: ['', '1-5', '6-10', '11-50', '51-100', '100+'],
+  };
+  const boutonsNouveauTiers = (pourDevis) => (S.crm ? `<div class="actions-tiers"><button type="button" class="btn-verre" data-nouveau-tiers="C"${pourDevis ? ' data-pour-devis' : ''}>${ico('clientPlus', 18)}Nouveau client</button><button type="button" class="btn-verre" data-nouveau-tiers="P"${pourDevis ? ' data-pour-devis' : ''}>${ico('plus', 18, 2.4)}Nouveau prospect</button></div>` : '');
+  const optionsSel = (l, v) => l.map((x) => { const [k, t] = Array.isArray(x) ? x : [x, x]; return `<option value="${esc(k)}"${String(k) === String(v) ? ' selected' : ''}>${esc(t || '—')}</option>`; }).join('');
+  const normNom = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  function feuilleTiers(id, nat, pourDevis) {
+    const t0 = id ? tiersDe(id) : null; if (id && !t0) { toast('Fiche introuvable.'); return; }
+    const moiNom = nomDe(S.profil); const moiCom = TL.commerciaux.find((c) => normNom(c) === normNom(moiNom)) || TL.commerciaux[0];
+    const t = t0 || { nom: '', alt: '', prospect: nat !== 'C', client: nat === 'C', adresse: '', cp: '', ville: '', pays: 'France', tel: '', portable: '', email: '', web: '', siren: '', siret: '', tva_num: '', assujetti: true,
+      type: 'TPE', effectif: '', commercial: moiCom, statut_prospect: 'jamais', potentiel: 0, remise: 0, cond: '30 jours', mode: 'Virement', encours_max: 0, tags: [] };
+    const estClient = !!t.client; const coms = [...new Set([...TL.commerciaux, ...(t.commercial ? [t.commercial] : [])])];
+    const ch = (lib, nom, v, o = {}) => `<label class="champ">${lib}<input name="${nom}" value="${esc(v == null ? '' : v)}"${o.type ? ` type="${o.type}"` : ''}${o.req ? ' required' : ''}${o.ph ? ` placeholder="${esc(o.ph)}"` : ''}${o.mode ? ` inputmode="${o.mode}"` : ''}${o.type === 'number' ? ' min="0" step="any"' : ''} maxlength="300"></label>`;
+    const sel = (lib, nom, l, v) => `<label class="champ">${lib}<select name="${nom}">${optionsSel(l, v)}</select></label>`;
+    ouvrirFeuille(`<h3>${t0 ? `Modifier ${esc(t0.nom)}` : estClient ? 'Nouveau client' : 'Nouveau prospect'}</h3>
+      <form class="form-tiers" data-form-tiers="${esc(t0 ? t0.id : '')}"${pourDevis ? ' data-pour-devis' : ''}>
+      <div class="nature" role="radiogroup" aria-label="Nature"><label><input type="radio" name="nature" value="P"${estClient ? '' : ' checked'}><span>Prospect</span></label><label><input type="radio" name="nature" value="C"${estClient ? ' checked' : ''}><span>Client</span></label></div>
+      ${t0 && t0.code_client ? `<p class="aide">Code client ${esc(t0.code_client)}</p>` : '<p class="aide">Code client attribué automatiquement.</p>'}
+      <h4>Identité</h4>
+      ${ch('Nom du tiers *', 'nom', t.nom, { req: true })}${ch('Nom alternatif', 'alt', t.alt, { ph: 'Nom commercial, marque…' })}
+      <h4>Coordonnées</h4>
+      <label class="champ">Adresse<textarea name="adresse" rows="2" maxlength="500">${esc(t.adresse || '')}</textarea></label>
+      <div class="deux">${ch('Code postal', 'cp', t.cp, { mode: 'numeric' })}${ch('Ville', 'ville', t.ville)}</div>
+      ${ch('Pays', 'pays', t.pays || 'France')}
+      <div class="deux">${ch('Téléphone', 'tel', t.tel, { type: 'tel' })}${ch('Portable', 'portable', t.portable, { type: 'tel' })}</div>
+      ${ch('E-mail', 'email', t.email, { type: 'email' })}${ch('Site web', 'web', t.web, { mode: 'url' })}
+      <h4>Identifiants professionnels</h4>
+      <div class="deux">${ch('SIREN', 'siren', t.siren, { mode: 'numeric' })}${ch('SIRET', 'siret', t.siret, { mode: 'numeric' })}</div>
+      <div class="deux">${sel('Assujetti à la TVA', 'assujetti', [['1', 'Oui'], ['', 'Non']], t.assujetti ? '1' : '')}${ch('N° de TVA', 'tva_num', t.tva_num, { ph: 'FR…' })}</div>
+      <h4>Suivi commercial</h4>
+      <div class="deux">${sel('Type', 'type', TL.types, t.type)}${sel('Effectif', 'effectif', TL.effectifs, t.effectif)}</div>
+      ${sel('Commercial', 'commercial', coms, t.commercial)}
+      <div class="deux">${sel('Statut de prospection', 'statut_prospect', TL.statuts, t.statut_prospect || 'jamais')}${sel('Potentiel', 'potentiel', TL.potentiels.map((x, i) => [i, x]), +t.potentiel || 0)}</div>
+      ${ch('Tags / catégories', 'tags', (t.tags || []).join(', '), { ph: 'Ex. : chantier, VIP' })}
+      ${ch('Remise client (%)', 'remise', t.remise || '', { type: 'number', mode: 'decimal' })}<p class="aide">Appliquée sur le prix net ; compte comme une réduction (commission 12 %).</p>
+      <div class="deux">${sel('Conditions de règlement', 'cond', TL.conditions, t.cond || '30 jours')}${sel('Mode de règlement', 'mode', TL.modes, t.mode || 'Virement')}</div>
+      ${ch('Encours autorisé (€)', 'encours_max', t.encours_max || '', { type: 'number', mode: 'decimal' })}
+      <button class="btn-metal" type="submit">${t0 ? 'Enregistrer' : 'Créer le tiers'}</button><button class="btn-verre" type="button" data-fermer>Annuler</button></form>`);
+  }
+  async function enregistrerTiers(id, f) {
+    const auteur = nomDe(S.profil); const nom = f.nom.value.trim(); if (!nom) throw new Error('le nom est obligatoire');
+    const client = f.querySelector('[name="nature"]:checked').value === 'C';
+    const num = (n) => { const x = parseFloat(String(f[n].value).replace(',', '.')); return Number.isFinite(x) && x > 0 ? x : 0; };
+    const champs = { nom, alt: f.alt.value.trim(), prospect: !client, client, adresse: f.adresse.value.trim(), cp: f.cp.value.trim(), ville: f.ville.value.trim(), pays: f.pays.value.trim() || 'France',
+      tel: f.tel.value.trim(), portable: f.portable.value.trim(), email: f.email.value.trim(), web: f.web.value.trim(), siren: f.siren.value.trim(), siret: f.siret.value.trim(), assujetti: f.assujetti.value === '1',
+      tva_num: f.tva_num.value.trim(), type: f.type.value, effectif: f.effectif.value, commercial: f.commercial.value, statut_prospect: f.statut_prospect.value, potentiel: +f.potentiel.value || 0,
+      tags: f.tags.value.split(',').map((s) => s.trim()).filter(Boolean), remise: num('remise'), cond: f.cond.value, mode: f.mode.value, encours_max: num('encours_max') };
+    const compta = (n) => n.normalize('NFD').replace(/[^A-Za-z]/g, '').slice(0, 5).toUpperCase();
+    for (let essai = 0; essai < 4; essai++) {
+      const { data: blob, error } = await sb.storage.from('donnees-fmd').download('crm/crm.json'); if (error || !blob) throw new Error('CRM illisible (' + ((error && error.message) || 'vide') + ')');
+      const db = JSON.parse(await blob.text()); const rev = db._rev;
+      ['tiers', 'evenements'].forEach((k) => { if (!Array.isArray(db[k])) db[k] = []; }); db.compteurs = db.compteurs || {};
+      const maintenant = new Date().toISOString(); const neuf = !id;
+      let o = neuf ? null : db.tiers.find((x) => x.id === id); if (!neuf && !o) throw new Error('fiche introuvable (supprimée sur un PC ?)');
+      if (neuf) {
+        const doublon = db.tiers.find((x) => normNom(x.nom) === normNom(nom) && (x.client || x.prospect));
+        if (doublon && essai === 0 && !window.confirm(`« ${doublon.nom} » existe déjà${doublon.ville ? ` (${doublon.ville})` : ''}. Créer quand même un nouveau tiers ?`)) throw new Error('création annulée');
+        o = { id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), contacts: [], comptes: [], note_pub: '', note_priv: '', etat: 'ouvert', cree: maintenant, code_client: '', code_fourn: '', compta_client: '', compta_fourn: '',
+          fournisseur: false, fax: '', pas_mail: false, naf: '', rcs: '', niveau: 1, logo: '' };
+        db.tiers.push(o);
+      }
+      Object.assign(o, champs);
+      if (o.client) o.prospect = false;
+      if (!o.code_client) { const d = new Date(); db.compteurs.cu = (db.compteurs.cu || 0) + 1;
+        o.code_client = `CU${String(d.getFullYear()).slice(2)}${String(d.getMonth() + 1).padStart(2, '0')}-${String(db.compteurs.cu).padStart(5, '0')}`; o.compta_client = o.compta_client || '411' + compta(o.nom); }
+      o.modifie = maintenant;
+      db.evenements.unshift({ id: 'ev' + Date.now().toString(36), d: maintenant, par: auteur, tiers: o.id, objet: { type: 'tiers', id: o.id }, titre: `Tiers ${o.nom} ${neuf ? 'créé' : 'modifié'} (téléphone)`, texte: '', type: 'auto' });
+      if (db.evenements.length > 600) db.evenements.length = 600;
+      db._parent = rev || null; db._rev = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      const { data: b2 } = await sb.storage.from('donnees-fmd').download('crm/crm.json');
+      if (b2) { try { if (JSON.parse(await b2.text())._rev !== rev) continue; } catch { /* relu au prochain essai */ } }
+      const { error: e2 } = await sb.storage.from('donnees-fmd').upload('crm/crm.json', new Blob([JSON.stringify(db)], { type: 'application/json' }), { upsert: true, contentType: 'application/json', cacheControl: '0' });
+      if (e2) throw new Error(e2.message);
+      try { await sb.from('evenements').insert({ module: 'crm', cle: 'donnees', poste: 'mobile-' + moi() }); } catch { /* les PC relisent toutes les minutes */ }
+      S.crm = db;
+      if (neuf && S.profil && S.profil.controle_par && S.profil.controle_par !== moi()) {
+        const quoi = o.client ? 'le client' : 'le prospect'; const libelle = `${quoi} ${o.nom}`;
+        const apercu = { type: 'tiers', titre: o.client ? 'Client' : 'Prospect', ref: o.nom, adresse: o.adresse || '', ville: [o.cp, o.ville].filter(Boolean).join(' '), tel: o.tel || o.portable || '', email: o.email || '', siret: o.siret || '', code: o.code_client || '' };
+        try { await sb.from('messages').insert({ de: moi(), a: S.profil.controle_par, texte: `🔎 À contrôler : ${auteur} vient de créer ${libelle}.`, lien: { module: 'crm', route: `tiers/fiche/${o.id}`, libelle: libelle.charAt(0).toUpperCase() + libelle.slice(1), controle: true, apercu } }); } catch { /* fiche créée quand même */ }
+      }
+      return o;
+    }
+    throw new Error('le CRM change en ce moment sur un autre poste, réessayez dans quelques secondes');
+  }
   function feuilleMessage(m) {
     const mien = m.de === moi();
     ouvrirFeuille(`<h3>Message</h3>${m.texte ? '<button class="btn-verre" type="button" data-copier="' + m.id + '">Copier le texte</button>' : ''}<button class="btn-verre" type="button" data-masquer="${m.id}">Supprimer pour moi</button>${mien ? `<button class="btn-verre danger" type="button" data-supprimer="${m.id}">Supprimer pour tout le monde</button>` : ''}<button class="btn-verre" type="button" data-fermer>Annuler</button>`);
@@ -1010,6 +1108,8 @@
     const od = t.closest('[data-ouvrir-doc]'); if (od) { const doc = docDeLien({ route: od.dataset.ouvrirDoc }); if (doc) { S.client = doc.tiers; S.route = 'client'; S.feuille = null; rendre(); window.scrollTo(0, 0); feuilleDoc((od.dataset.ouvrirDoc.startsWith('cmd') ? 'commandes:' : 'propositions:') + doc.id); } return; }
     if (t.closest('[data-nouveau-devis]')) { nouveauDevis(t.closest('[data-nouveau-devis]').dataset.nouveauDevis || null); return; }
     if (t.closest('[data-nouvelle-commande]')) { nouveauDevis(t.closest('[data-nouvelle-commande]').dataset.nouvelleCommande || null, 'cmd'); return; }
+    const nt = t.closest('[data-nouveau-tiers]'); if (nt) { feuilleTiers(null, nt.dataset.nouveauTiers, nt.hasAttribute('data-pour-devis')); return; }
+    const mt = t.closest('[data-modifier-tiers]'); if (mt) { feuilleTiers(mt.dataset.modifierTiers); return; }
     const fc = t.closest('[data-fiche-client]'); if (fc) { S.client = fc.dataset.ficheClient; S.route = 'client'; rendre(); window.scrollTo(0, 0); return; }
     if (clicStock(t)) return;
     const fo = t.closest('[data-fiche-produit]'); if (fo) { feuilleProduit(fo.dataset.ficheProduit); return; }
@@ -1072,6 +1172,16 @@
       const { error } = await sb.from('agenda').insert({ titre: f.titre.value.trim(), lieu: f.lieu.value.trim() || null, debut: debut.toISOString(), fin: fin.toISOString(), journee: false, couleur: 'rg' });
       if (error) { toast('Non enregistré : ' + error.message); return; }
       S.feuille = null; await chargerAgenda(); AG.cle = ''; AG.ref = f.date.value; rendre(); toast('Rendez-vous ajouté (visible aussi sur le PC).'); return;
+    }
+    if (f.matches('[data-form-tiers]')) {
+      const b = f.querySelector('[type=submit]'); if (b.disabled) return; const lib = b.textContent; b.disabled = true; b.textContent = 'Enregistrement…';
+      try {
+        const id = f.dataset.formTiers || null; const o = await enregistrerTiers(id, f); S.feuille = null;
+        if (f.hasAttribute('data-pour-devis') && S.devis) { const d = S.devis; d.tiers = o.id; d.lignes.forEach((l) => { const p = S.produitsCache[l.produit]; if (p) Object.assign(l, prixPour(d.tiers, p)); }); d.etape = 2; S.rechStock = ''; lancerRechercheStock(); S.route = 'devis'; }
+        else { S.client = o.id; S.route = 'client'; }
+        rendre(); window.scrollTo(0, 0); toast(id ? 'Modifications enregistrées (visibles aussi sur le PC).' : `${o.client ? 'Client' : 'Prospect'} ${o.nom} créé (${o.code_client}), visible aussi sur le PC.`);
+      } catch (er) { b.disabled = false; b.textContent = lib; toast('Non enregistré : ' + er.message); }
+      return;
     }
     if (f.matches('[data-form-tache]')) {
       const { error } = await sb.from('taches').insert({ titre: f.titre.value.trim(), date_prevue: f.date.value || null, priorite: f.urgente.checked ? 'urgente' : 'normale', pour: moi() });
