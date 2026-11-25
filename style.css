@@ -213,3 +213,8 @@ a { color: var(--rg-clair); }
   .messages-split .widget { height: calc(100vh - 250px); min-height: 420px; }
   .messages-split .fil-page { height: 100%; }
 }
+
+/* Cacher la marge (25/11/2026) : bouton œil à côté de la marge (devis, cartes « À contrôler ») */
+.marge { display: inline-flex; align-items: center; gap: 6px; }
+.oeil-marge { display: inline-grid; place-items: center; width: 32px; height: 32px; margin: -6px 0; padding: 0; border: 1px solid rgba(247, 218, 197, .22); border-radius: 50%; background: rgba(255, 255, 255, .04); color: var(--texte-2); cursor: pointer; }
+.oeil-marge[aria-pressed="true"] { color: #C9987D; }

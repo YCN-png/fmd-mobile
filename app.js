@@ -5,7 +5,7 @@
 // D.A. FMD Signature (maquette V2 : https://claude.ai/artifact/6T9TEbxaE1DHg7L7GVLF56). Détail : cerveau/Mobile.md.
 (function () {
   'use strict';
-  const VERSION = "0.4.141"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
+  const VERSION = "0.4.142"; // remplacé à la fabrication (mobile/construire.js) par la version du logiciel FMD
   const C = window.FMD_CONFIG || {};
   const sb = window.supabase.createClient(C.supabaseUrl, C.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'fmd-mobile-session' } });
   const app = document.getElementById('app');
@@ -32,6 +32,8 @@
   }
 
   const ICO = {
+    oeil: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle>',
+    oeilBarre: '<path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.6 3.5M6.6 6.6A16.5 16.5 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M3 3l18 18M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>',
     accueil: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path>',
     agenda: '<rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18M8 3v4M16 3v4"></path>',
     taches: '<path d="M9 11l3 3 8-8"></path><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"></path>',
@@ -55,6 +57,12 @@
 
   const S = { user: null, profil: null, profils: [], route: 'accueil', conv: null, messages: [], taches: [], evts: [], crm: null, jour: aujISO(), canal: null, urls: {}, feuille: null,
     client: null, rechClients: '', rechStock: '', produits: [], produitsCharges: false, produitsCache: {}, devis: null };
+  // Cacher la marge (25/11/2026, demande : « sur l'application il faut un bouton qui cache la marge ») : pour montrer l'écran
+  // à un client. Choix gardé sur l'appareil (préférence d'affichage, pas une donnée).
+  const CLE_MARGE = 'fmd-mobile-marge-cachee';
+  let margeCachee = (() => { try { return localStorage.getItem(CLE_MARGE) === '1'; } catch { return false; } })();
+  const boutonMarge = () => `<button type="button" class="oeil-marge" data-marge aria-pressed="${margeCachee}" aria-label="${margeCachee ? 'Afficher la marge' : 'Cacher la marge'}" title="${margeCachee ? 'Afficher la marge' : 'Cacher la marge'}">${ico(margeCachee ? 'oeilBarre' : 'oeil', 18)}</button>`;
+  const blocMarge = (v) => `<span class="marge">${margeCachee ? '' : `Marge <b>${euros(v)}</b>`}${boutonMarge()}</span>`;
   const ROUTES = /^(accueil|agenda|taches|messages|clients|stock|devis)$/;
   const moi = () => (S.user ? S.user.id : null);
   const profil = (id) => S.profils.find((p) => p.id === id);
@@ -265,7 +273,7 @@
       ? `<div class="l1"><span class="rond" style="width:40px;height:40px;font-size:15px">${esc(String(a.ref || '?').charAt(0))}</span><div><small>${esc(a.titre)} créé par ${esc(auteur)}</small><b>${esc(a.ref)}</b></div></div><small>${esc([a.adresse, a.ville].filter(Boolean).join(', '))}${a.tel ? ' · ' + esc(a.tel) : ''}</small>`
       : `<div class="l1"><div style="flex:1"><small>${esc(a.titre)} de ${esc(auteur)}</small><b>${esc(a.ref)}</b></div></div><small>${esc(a.role)} : <b>${esc(a.tiers || '—')}</b>${a.ville ? ' · ' + esc(a.ville) : ''}</small>
         <table>${(a.lignes || []).slice(0, 6).map((l) => `<tr><td>${l.ref ? `<b>${esc(l.ref)}</b> ` : ''}${esc(l.desc)} × ${l.qte}</td><td>${euros(l.ht)}</td></tr>`).join('')}${(a.nb || 0) > 6 ? `<tr><td colspan="2">… et ${a.nb - 6} autres lignes</td></tr>` : ''}</table>
-        <div class="tot"><span>HT <b>${euros(a.ht)}</b></span><span>TTC <b>${euros(a.ttc)}</b></span>${a.marge != null ? `<span>Marge <b>${euros(a.marge)}</b></span>` : ''}</div>`;
+        <div class="tot"><span>HT <b>${euros(a.ht)}</b></span><span>TTC <b>${euros(a.ttc)}</b></span>${a.marge != null ? blocMarge(a.marge) : ''}</div>`;
     const ctrl = m.lien.controle && m.a === moi() ? (dejaControle(m) ? '<span class="ok-controle">✓ Contrôlé</span>' : `<button type="button" class="btn-verre" data-controle="${m.id}">✓ Contrôlé</button>`) : '';
     return `<div class="controle-quoi">🔎 À contrôler</div><div class="carte-controle">${corps}</div>${ctrl ? `<div class="actions-carte">${ctrl}</div>` : ''}`;
   }
@@ -407,7 +415,7 @@
     }
     const recap = `<section class="widget chaud panier"><div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">${avatarTiers(t, 44)}<div style="flex:1;min-width:0"><b>${esc(t ? t.nom : '—')}</b><div class="vide" style="padding:0;font-size:12px">${esc(t && t.remise ? `remise client ${t.remise} %` : 'prix net')}</div></div>${d.etape === 2 ? '<button type="button" class="btn-verre" data-devis-etape="1">Changer</button>' : ''}</div>
       ${d.lignes.map((l, i) => `<div class="ligne-devis"><div class="txt"><b>${esc(l.desc)}</b><small>${euros(l.pu)}${l.remise ? ` −${l.remise} %` : ''} · ${esc(l.auto)}</small></div><div class="stepper" role="group" aria-label="Quantité"><button type="button" data-qte="${i}" data-pas="-1" aria-label="Retirer un">−</button><span>${l.qte}</span><button type="button" data-qte="${i}" data-pas="1" aria-label="Ajouter un">+</button></div></div>`).join('') || '<p class="vide">Ajoutez des produits.</p>'}
-      <div class="totaux"><span>Total HT <b>${euros(total.ht)}</b></span><span>Marge <b>${euros(total.marge)}</b></span><span class="ttc">TTC <b>${euros(total.ttc)}</b></span></div></section>`;
+      <div class="totaux"><span>Total HT <b>${euros(total.ht)}</b></span>${blocMarge(total.marge)}<span class="ttc">TTC <b>${euros(total.ttc)}</b></span></div></section>`;
     if (d.etape === 2) {
       if (!S.produitsCharges) lancerRechercheStock();
       const dans = new Map(d.lignes.map((l) => [l.produit, l.qte]));
@@ -497,7 +505,7 @@
       <button class="btn-metal" type="submit">Ajouter</button><button class="btn-verre" type="button" data-fermer>Annuler</button></form>`);
   }
   function feuilleCompte() {
-    ouvrirFeuille(`<h3>${esc(nomDe(S.profil))}</h3><p class="vide" style="padding:0">${esc(S.user.email || '')}</p><p class="vide" style="padding:0">Données synchronisées avec le logiciel FMD sur PC.</p><p class="vide" style="padding:0">Version FMD ${esc(VERSION)}</p><button class="btn-verre" type="button" data-chercher-maj>Rechercher une mise à jour</button>${blocInstaller()}
+    ouvrirFeuille(`<h3>${esc(nomDe(S.profil))}</h3><p class="vide" style="padding:0">${esc(S.user.email || '')}</p><p class="vide" style="padding:0">Données synchronisées avec le logiciel FMD sur PC.</p><p class="vide" style="padding:0">Version FMD ${esc(VERSION)}</p><button class="btn-verre" type="button" data-marge>${margeCachee ? 'Afficher la marge' : 'Cacher la marge'}</button><button class="btn-verre" type="button" data-chercher-maj>Rechercher une mise à jour</button>${blocInstaller()}
       <button class="btn-verre" type="button" data-actualiser>Tout relire sur le serveur</button><button class="btn-verre danger" type="button" data-deconnexion>Se déconnecter</button><button class="btn-verre" type="button" data-fermer>Fermer</button>`);
   }
   function feuilleMessage(m) {
@@ -511,6 +519,7 @@
     if (t.closest('[data-fermer]') || t.matches('[data-fermer-feuille]')) { fermerFeuille(); return; }
     const al = t.closest('[data-aller]'); if (al) { aller(al.dataset.aller); return; }
     if (t.closest('[data-compte]')) { feuilleCompte(); return; }
+    if (t.closest('[data-marge]')) { margeCachee = !margeCachee; try { localStorage.setItem(CLE_MARGE, margeCachee ? '1' : '0'); } catch { /* préférence non gardée */ } if (S.feuille) feuilleCompte(); else rendre(true); toast(margeCachee ? 'Marge cachée.' : 'Marge affichée.'); return; }
     if (t.closest('[data-deconnexion]')) { S.feuille = null; if (S.canal) sb.removeChannel(S.canal); await sb.auth.signOut(); return; }
     if (t.closest('[data-chercher-maj]')) { const b = t.closest('[data-chercher-maj]'); b.disabled = true; b.textContent = 'Recherche…'; const r = await rechargerSiNouvelle(null, true); S.feuille = null; rendre(true); if (!r) toast(`FMD est à jour (version ${VERSION}).`); return; }
     if (t.closest('[data-actualiser]')) { S.feuille = null; await Promise.all([chargerProfils(), chargerMessages(), chargerTaches(), chargerAgenda(), chargerCRM()]); rendre(); toast('À jour avec le serveur.'); return; }
