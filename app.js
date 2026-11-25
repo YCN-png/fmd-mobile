@@ -420,7 +420,7 @@
 
   // Magasin : vue 3D isométrique (rayons en volumes) ou plan vu de dessus ; les rayons du produit choisi s'allument.
   function dessinMagasin(allumes, choisi) {
-    const plan = planMagasin(); const iso = STK.vue === '3d'; const C = Math.cos(Math.PI / 6), SN = 0.5, H = 1.8;
+    const plan = planMagasin(); const iso = STK.vue === '3d'; const C = Math.cos(Math.PI / 6), SN = 0.5, H = 1.15;
     const P = (x, z, y = 0) => (iso ? [(x - z) * C, (x + z) * SN - y * H] : [x, z]);
     const coins = (r) => { const a = (r.rot * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), L = r.long / 2, W = r.prof / 2;
       return [[-L, -W], [L, -W], [L, W], [-L, W]].map(([u, v]) => [r.x + u * c - v * s, r.z + u * s + v * c]); };
@@ -428,7 +428,7 @@
     const sol = [[-LARG_MAG / 2, -PROF_MAG / 2], [LARG_MAG / 2, -PROF_MAG / 2], [LARG_MAG / 2, PROF_MAG / 2], [-LARG_MAG / 2, PROF_MAG / 2]];
     const tous = [...sol.map(([x, z]) => P(x, z)), ...plan.flatMap((r) => coins(r).map(([x, z]) => P(x, z, r.haut)))];
     const mnX = Math.min(...tous.map((p) => p[0])) - 1.2, mxX = Math.max(...tous.map((p) => p[0])) + 1.2, mnY = Math.min(...tous.map((p) => p[1])) - 2.2, mxY = Math.max(...tous.map((p) => p[1])) + 1;
-    const ordre = iso ? [...plan].sort((a, b) => a.x + a.z - (b.x + b.z)) : plan;
+    const ordre = (iso ? [...plan].sort((a, b) => a.x + a.z - (b.x + b.z)) : [...plan]).sort((a, b) => allumes.has(a.id) - allumes.has(b.id)); // le rayon allumé passe devant
     let svg = `<polygon points="${pts(sol.map(([x, z]) => P(x, z)))}" class="mg-sol"/>`; let etiquettes = '';
     for (const r of ordre) {
       const k = coins(r); const on = allumes.has(r.id); const cl = `mg-r${on ? ' on' : ''}${STK.rayon === r.id ? ' choisi' : ''}`;
@@ -442,10 +442,12 @@
       svg += `<g class="${cl}" data-rayon="${esc(r.id)}"><title>${esc(r.id + (r.nom ? ' — ' + r.nom : ''))}</title>${g}</g>`;
       const [ex, ey] = P(r.x, r.z, iso ? r.haut : 0);
       if (on && r.id === choisi) etiquettes += `<g class="mg-bulle" transform="translate(${ex.toFixed(2)} ${(ey - (iso ? 1.3 : 1.1)).toFixed(2)})"><rect x="-1.5" y="-0.62" width="3" height="1.24" rx="0.62"/><text y="0.32">${esc(r.id)}</text></g>`;
-      else if (on || !iso) etiquettes += `<text class="mg-id" x="${ex.toFixed(2)}" y="${(iso ? P(r.x, r.z)[1] + 0.9 : ey + 0.3).toFixed(2)}">${esc(r.id)}</text>`;
+      else if (!iso || /1$/.test(r.id)) etiquettes += `<text class="mg-id" x="${ex.toFixed(2)}" y="${(iso ? P(r.x, r.z)[1] + 0.9 : ey + 0.3).toFixed(2)}">${esc(r.id)}</text>`;
     }
     return `<svg class="magasin-svg" viewBox="${mnX.toFixed(1)} ${mnY.toFixed(1)} ${(mxX - mnX).toFixed(1)} ${(mxY - mnY).toFixed(1)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Plan du magasin">
-      <defs><linearGradient id="mg-or" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FBE6D6"/><stop offset="1" stop-color="#E2B497"/></linearGradient></defs>${svg}${etiquettes}</svg>`;
+      <defs><linearGradient id="mg-or" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FBE6D6"/><stop offset="1" stop-color="#E2B497"/></linearGradient>
+      <radialGradient id="mg-solg" cx="0.5" cy="0.45" r="0.6"><stop offset="0" stop-color="#6F4A3C" stop-opacity="0.35"/><stop offset="1" stop-color="#6F4A3C" stop-opacity="0.08"/></radialGradient>
+      <filter id="mg-halo" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="0.45" result="f"/><feMerge><feMergeNode in="f"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${svg}${etiquettes}</svg>`;
   }
   const lieuTexte = (e) => `rayon ${e.rayon} · niveau ${e.niveau || 1} · case ${e.case || 1}`;
   function blocMagasin() {
@@ -465,7 +467,7 @@
   }
   function blocReappro() {
     const st = STK.stats; const ids = st && st.bas ? st.bas : S.produits.filter(enAlerte).map((p) => p.id);
-    const l = ids.map((id) => S.produitsCache[id]).filter(Boolean).slice(0, 4);
+    const l = ids.map((id) => S.produitsCache[id]).filter(Boolean).slice(0, window.innerWidth >= 900 ? 3 : 4);
     const carte = (p) => { const s = Math.max(0, +p.stock || 0), a = +p.alerte || 1; const pct = Math.min(100, Math.round((s / a) * 100));
       return `<div class="reappro"><button type="button" class="photo" data-fiche-produit="${esc(p.id)}" aria-label="Voir ${esc(p.libelle || p.ref)}">${imageProduit(p, 58)}</button><div class="txt"><b>${esc(p.libelle || p.ref)}</b><span class="jauge"><i style="width:${Math.max(4, pct)}%" class="${pct < 50 ? 'rouge' : ''}"></i></span><small>${s.toLocaleString('fr-FR')} en stock · seuil ${p.alerte}</small></div><button type="button" class="commander" data-commander="${esc(p.id)}">Commander</button></div>`; };
     return `<div class="tete"><h2>À réapprovisionner</h2>${ids.length > l.length ? `<button type="button" class="lien-tout" data-tout-reappro>Tout voir (${ids.length})</button>` : ''}</div>
@@ -496,7 +498,7 @@
         <button type="button" class="scan" data-scanner aria-label="Scanner un code-barres">${ico('codebarre', 22)}</button></div></header>
       ${S.rechStock ? '' : kpis}
       <div class="stk-grille">${blocMagasin()}${S.rechStock ? '' : `<section class="widget stk-reappro">${blocReappro()}${blocMouvements()}</section>`}</div>
-      ${liste}`;
+      ${S.rechStock ? liste : ''}`;
   }
   function feuilleProduit(id) {
     const p = S.produitsCache[id]; if (!p) return;
